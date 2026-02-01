@@ -1,0 +1,25 @@
+{
+  "version": "{{ version }}",
+  "author": "@{{ username }}",
+  "identity": {
+    "pubkey": "{{ pubkey }}",
+    "key_file": "keys/ed25519_private.pem",
+    "key_encrypted": {{ encrypted|lower }}
+  },
+  "storage": {
+    "base_path": "~/.local/share/filu-x/data",
+    "ipfs_gateway": "https://ipfs.io",
+    "ipfs_api": "http://127.0.0.1:5001",
+    "auto_pin": true
+  },
+  "discovery": {
+    "nostr_relays": [],
+    "auto_follow_discovered": false,
+    "max_discovery_depth": 2
+  },
+  "security": {
+    "require_preview": true,
+    "auto_scan_malware": false,
+    "max_post_size_kb": 10240
+  }
+}
