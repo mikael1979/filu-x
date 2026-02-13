@@ -1,0 +1,23 @@
+{
+  "$schema": "https://filu-x.org/schemas/post-v{{ version }}.json",
+  "version": "{{ version }}",
+  "id": "{{ post_id }}",
+  "author": "@{{ username }}",
+  "pubkey": "{{ pubkey }}",
+  "type": "text",
+  "content": {{ content|tojson }},
+  "content_type": "text/plain",
+  "attachments": [],
+  "prev_post_cid": {{ prev_post_cid|tojson }},
+  "tags": [],
+  "created_at": "{{ created_at }}",
+  "updated_at": "{{ updated_at }}",
+  "signature": "{{ signature }}",
+  "access_points": [
+    {
+      "protocol": "local",
+      "path": "posts/{{ post_id }}.json",
+      "priority": 1
+    }
+  ]
+}

@@ -28,3 +28,9 @@ class TemplateEngine:
     
     def render_private_config(self, context: Dict[str, Any]) -> dict:
         return self._render("private_config.json.j2", context)
+    
+    def render_post(self, context: Dict[str, Any]) -> dict:
+        """Luo post.json templatista"""
+        if "tags" in context and isinstance(context["tags"], str):
+            context["tags"] = [t.strip() for t in context["tags"].split(",") if t.strip()]
+        return self._render("post.json.j2", context)

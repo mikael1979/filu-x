@@ -1,0 +1,17 @@
+click>=8.1
+cryptography>=41.0
+jinja2>=3.1
+python-slugify>=8.0
+requests>=2.31.0
+python-magic>=0.4.27
+bleach>=6.0.0
+
+[dev]
+pytest>=7.0
+black>=23.0
+mypy>=1.0
+isort>=5.0
+qrcode>=7.0
+
+[ipfs]
+py-ipfs-http-client>=0.1.0

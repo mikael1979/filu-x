@@ -1,0 +1,25 @@
+Metadata-Version: 2.4
+Name: filu-x
+Version: 0.0.1
+Summary: File-based decentralized social media
+Author-email: Mikael1979 <mikael@example.com>
+License: Apache-2.0
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE.md
+Requires-Dist: click>=8.1
+Requires-Dist: cryptography>=41.0
+Requires-Dist: jinja2>=3.1
+Requires-Dist: python-slugify>=8.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: python-magic>=0.4.27
+Requires-Dist: bleach>=6.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: black>=23.0; extra == "dev"
+Requires-Dist: mypy>=1.0; extra == "dev"
+Requires-Dist: isort>=5.0; extra == "dev"
+Requires-Dist: qrcode>=7.0; extra == "dev"
+Provides-Extra: ipfs
+Requires-Dist: py-ipfs-http-client>=0.1.0; extra == "ipfs"
+Dynamic: license-file
