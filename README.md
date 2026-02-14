@@ -99,8 +99,9 @@ All content verified locally before rendering
         ├── follow_list.json   # Who you follow (optional sharing)
         └── posts/
             └── 20260214_120000_hello.json  # Signed post
+```
 
-graph LR
+```graph LR
     A[Create post] --> B(Sign with Ed25519)
     B --> C{Sync mode?}
     C -->|IPFS daemon| D[Push to IPFS network]
