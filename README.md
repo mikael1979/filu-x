@@ -49,7 +49,7 @@ filu-x link
 
 # Resolve someone else's content
 filu-x resolve fx://bafkreiabc123...
-...
+```
 
 💡 --no-password stores keys unencrypted – for alpha testing only.
 Beta will require password-encrypted keys.
