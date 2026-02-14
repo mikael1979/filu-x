@@ -1,3 +1,4 @@
+# src/filu_x/cli/commands/post.py
 import sys
 import re
 from datetime import datetime, timezone
@@ -5,7 +6,6 @@ import click
 try:
     from slugify import slugify
 except ImportError:
-    # Fallback ilman slugify-kirjastoa
     def slugify(text, **kwargs):
         text = text.lower()
         text = re.sub(r'[^a-z0-9]+', '-', text)
@@ -17,7 +17,6 @@ from filu_x.core.crypto import sign_json
 from filu_x.core.templates import TemplateEngine
 
 def generate_post_id(content: str, timestamp: datetime) -> str:
-    """Generoi postauksen ID: YYYYMMDD_HHMMSS_slug"""
     slug = slugify(content[:30], max_length=20)
     if not slug or slug == "-":
         slug = "post"
@@ -25,13 +24,16 @@ def generate_post_id(content: str, timestamp: datetime) -> str:
 
 @click.command()
 @click.argument("content")
-@click.option("--tags", "-t", help="Tagit pilkulla eroteltuna (esim. python,ipfs)")
+@click.option("--tags", "-t", help="Tags separated by commas (e.g. python,ipfs)")
 def post(content: str, tags: str = None):
-    """Luo uusi postaus ja tallenna se paikallisesti"""
+    """Create a new post and save it locally"""
     layout = FiluXStorageLayout()
     
     if not layout.profile_path().exists():
-        click.echo(click.style("❌ Käyttäjää ei ole alustettu. Suorita ensin: filu-x init <käyttäjätunnus>", fg="red"))
+        click.echo(click.style(
+            "❌ User not initialized. Run first: filu-x init <username>",
+            fg="red"
+        ))
         sys.exit(1)
     
     try:
@@ -39,7 +41,7 @@ def post(content: str, tags: str = None):
         with open(layout.private_key_path(), "rb") as f:
             privkey_bytes = f.read()
     except FileNotFoundError as e:
-        click.echo(click.style(f"❌ Virhe avainta ladatessa: {e}", fg="red"))
+        click.echo(click.style(f"❌ Error loading keys: {e}", fg="red"))
         sys.exit(1)
     
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -97,7 +99,7 @@ def post(content: str, tags: str = None):
     profile["signature"] = sign_json(profile, privkey_bytes)
     layout.save_json(layout.profile_path(), profile, private=False)
     
-    click.echo(click.style(f"✅ Postaus luotu: {post_id}", fg="green"))
+    click.echo(click.style(f"✅ Post created: {post_id}", fg="green"))
     preview = content[:50] + "..." if len(content) > 50 else content
-    click.echo(f"   Sisältö: {preview}")
-    click.echo(f"   Tiedosto: {post_path}")
+    click.echo(f"   Content: {preview}")
+    click.echo(f"   File: {post_path}")

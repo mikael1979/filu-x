@@ -1,3 +1,4 @@
+# src/filu_x/cli/commands/follow.py
 """Follow command – add users to your follow list by fx:// link"""
 import sys
 import json
@@ -26,16 +27,16 @@ def follow(target: str, alias: str = None, force: bool = False):
     """
     layout = FiluXStorageLayout()
     
-    # 1. Varmista että käyttäjä on alustettu
+    # 1. Verify user is initialized
     if not layout.profile_path().exists():
         click.echo(click.style(
             "❌ User not initialized. Run first:\n"
-            "   filu-x init <username> --no-password",
+            "   filu-x init <username>",
             fg="red"
         ))
         sys.exit(1)
     
-    # 2. Lataa oma profiili ja salainen avain
+    # 2. Load profile and private key
     try:
         profile = layout.load_json(layout.profile_path())
         with open(layout.private_key_path(), "rb") as f:
@@ -44,7 +45,7 @@ def follow(target: str, alias: str = None, force: bool = False):
         click.echo(click.style(f"❌ Error loading keys: {e}", fg="red"))
         sys.exit(1)
     
-    # 3. Tarkista että kohde on fx:// linkki
+    # 3. Check target is fx:// link
     if not target.startswith("fx://"):
         click.echo(click.style(
             f"❌ Invalid target format. Expected fx:// link, got:\n"
@@ -54,22 +55,22 @@ def follow(target: str, alias: str = None, force: bool = False):
         click.echo("\n💡 Tip: Get profile link with 'filu-x link --profile'")
         sys.exit(1)
     
-    # 4. Alusta resolveri ja ratkaise profiili
+    # 4. Initialize resolver and resolve profile
     ipfs = IPFSClient(mode="auto")
     resolver = LinkResolver(ipfs_client=ipfs)
     
     try:
-        # Parsi linkki
+        # Parse link
         parsed = resolver.parse_fx_link(target)
         cid = parsed["cid"]
         
-        # Ratkaise sisältö
+        # Resolve content
         if not force:
             click.echo(click.style(f"🔍 Verifying profile signature...", fg="cyan"))
             profile_data = resolver.resolve_content(cid, skip_cache=False)
             
-            # Varmista että tämä on profiili (ei postaus)
-            if "author" not in profile_data or "feed_cid" not in profile_data:
+            # Verify this is a profile (not a post)
+            if "author" not in profile_data or "feed_cid" not in profile_
                 click.echo(click.style(
                     "⚠️  Warning: Target may not be a profile (missing 'author' or 'feed_cid' fields)",
                     fg="yellow"
@@ -85,7 +86,7 @@ def follow(target: str, alias: str = None, force: bool = False):
                 fg="green"
             ))
         else:
-            # Force-moodi: älä yritä ratkaista
+            # Force mode: skip resolution
             profile_data = None
             author = alias or cid[:12]
             pubkey_preview = "unknown"
@@ -109,7 +110,7 @@ def follow(target: str, alias: str = None, force: bool = False):
         click.echo(click.style(f"❌ Unexpected error: {e}", fg="red"))
         sys.exit(1)
     
-    # 5. Päivitä seurantalista
+    # 5. Update follow list
     follow_list_path = layout.follow_list_path()
     
     if follow_list_path.exists():
@@ -126,7 +127,7 @@ def follow(target: str, alias: str = None, force: bool = False):
             "signature": ""
         }
     
-    # Tarkista ettei jo seurata tätä CID:tä
+    # Check if already following
     if any(f["profile_cid"] == cid for f in follows):
         click.echo(click.style(
             f"⚠️  You already follow this user",
@@ -134,7 +135,7 @@ def follow(target: str, alias: str = None, force: bool = False):
         ))
         sys.exit(0)
     
-    # Lisää uusi seurattava
+    # Add new follow
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     follows.append({
         "user": alias or author,
@@ -150,13 +151,13 @@ def follow(target: str, alias: str = None, force: bool = False):
     follow_list["follows"] = follows
     follow_list["updated_at"] = now
     
-    # Allekirjoita uusi lista
+    # Sign new list
     follow_list["signature"] = sign_json(follow_list, privkey_bytes)
     
-    # Tallenna
+    # Save
     layout.save_json(follow_list_path, follow_list, private=False)
     
-    # 6. Näytä tulos
+    # 6. Show result
     display_name = alias or author
     click.echo()
     click.echo(click.style(
@@ -167,7 +168,7 @@ def follow(target: str, alias: str = None, force: bool = False):
     click.echo(f"   Profile: fx://{cid}")
     click.echo(f"   Posts: will appear in feed after sync")
     
-    # Ehdota seuraavaa askelta
+    # Suggest next steps
     click.echo()
     click.echo(click.style(
         "💡 Next steps:",

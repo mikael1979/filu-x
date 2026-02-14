@@ -1,5 +1,7 @@
-"""Sync command – sync files to IPFS (real HTTP API or mock)"""
+# src/filu_x/cli/commands/sync.py
+"""Sync command – sync files to IPFS (real or mock)"""
 import sys
+import json
 from pathlib import Path
 import click
 
@@ -21,7 +23,7 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
     
     if not layout.profile_path().exists():
         click.echo(click.style(
-            "❌ User not initialized. Run: filu-x init <username> --no-password",
+            "❌ User not initialized. Run: filu-x init <username>",
             fg="red"
         ))
         sys.exit(1)
@@ -34,8 +36,9 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
         click.echo(click.style(f"❌ IPFS error: {e}", fg="red"))
         sys.exit(1)
     
+    mode_str = "real IPFS" if ipfs.use_real else "mock IPFS"
     click.echo(click.style(
-        f"🔄 Syncing files to {'real IPFS' if ipfs.use_real else 'mock IPFS'}...",
+        f"🔄 Syncing files to {mode_str}...",
         fg="cyan",
         bold=True
     ))
@@ -73,13 +76,13 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
             except Exception as e:
                 errors.append((post_path.name, str(e)))
     
-    # Update manifest with real CIDs
+    # Update manifest with real CIDs (if real IPFS)
     if not dry_run and ipfs.use_real:
         try:
             manifest = layout.load_json(layout.manifest_path())
             for i, entry in enumerate(manifest.get("entries", [])):
                 if entry["type"] == "post":
-                    post_path = layout.posts_dir / f"{entry['path'].split('/')[-1]}"
+                    post_path = layout.posts_dir / entry["path"].split("/")[-1]
                     if post_path.exists():
                         cid = ipfs.add_file(post_path)
                         manifest["entries"][i]["cid"] = cid
@@ -95,7 +98,6 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
     # Summary
     click.echo()
     status = "DRY RUN" if dry_run else "COMPLETED"
-    mode_str = "real IPFS" if ipfs.use_real else "mock IPFS"
     click.echo(click.style(
         f"📊 Sync {status} ({mode_str})",
         fg="green",

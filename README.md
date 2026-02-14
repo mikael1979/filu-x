@@ -101,18 +101,19 @@ All content verified locally before rendering
             └── 20260214_120000_hello.json  # Signed post
 ```
 
-```graph LR
-    A[Create post] --> B(Sign with Ed25519)
-    B --> C{Sync mode?}
-    C -->|IPFS daemon| D[Push to IPFS network]
-    C -->|No daemon| E[Store in mock cache]
-    D --> F[Generate fx://bafkrei... link]
-    E --> F
-    F --> G[Share link anywhere]
-    G --> H[Others resolve & verify]
-```
-⚙️ Commands (Alpha 0.0.1)
 
+```markdown
+### Data flow
+
+1. **Create post** → Sign with Ed25519
+2. **Sync mode?**
+   - ✅ IPFS daemon running → Push to IPFS network
+   - ❌ No daemon → Store in mock cache (`~/.cache/filu-x/ipfs_mock/`)
+3. **Generate link** → `fx://bafkrei...`
+4. **Share link** anywhere (Twitter, Mastodon, etc.)
+5. **Others resolve** → Download + cryptographically verify content
+⚙️ Commands (Alpha 0.0.1)
+```
 ```bash
 Command
 Description

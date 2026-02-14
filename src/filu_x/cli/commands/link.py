@@ -1,4 +1,5 @@
-"""Link command – generate shareable fx:// links using real CIDs"""
+# src/filu_x/cli/commands/link.py
+"""Link command – generate shareable fx:// links"""
 import sys
 import click
 
@@ -14,13 +15,21 @@ def link(target: str, profile: bool, qr: bool, force_mock: bool):
     """
     Generate shareable fx:// link to your content.
     
-    Always uses content-addressed CID (fx://Qm...) – never post_id.
+    TARGET can be:
+      - "latest" (default): Your most recent post
+      - "profile": Your profile
+      - <post_id>: Specific post ID
+    
+    Examples:
+      filu-x link                # Latest post
+      filu-x link --profile      # Profile link
+      filu-x link 20260201_hello # Specific post
     """
     layout = FiluXStorageLayout()
     
     if not layout.profile_path().exists():
         click.echo(click.style(
-            "❌ User not initialized. Run: filu-x init <username> --no-password",
+            "❌ User not initialized. Run: filu-x init <username>",
             fg="red"
         ))
         sys.exit(1)
@@ -49,7 +58,7 @@ def link(target: str, profile: bool, qr: bool, force_mock: bool):
             
             # Use CID from manifest (or generate if missing)
             cid = posts[-1].get("cid")
-            if not cid or not cid.startswith("Qm"):
+            if not cid or not cid.startswith("Qm") and not cid.startswith("bafk"):
                 post_path = layout.posts_dir / posts[-1]["path"].split("/")[-1]
                 cid = ipfs.add_file(post_path)
             
