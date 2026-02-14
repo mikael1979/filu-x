@@ -99,7 +99,7 @@ All content verified locally before rendering
         ├── follow_list.json   # Who you follow (optional sharing)
         └── posts/
             └── 20260214_120000_hello.json  # Signed post
-```
+
 graph LR
     A[Create post] --> B(Sign with Ed25519)
     B --> C{Sync mode?}
@@ -109,8 +109,10 @@ graph LR
     E --> F
     F --> G[Share link anywhere]
     G --> H[Others resolve & verify]
-
+```
 ⚙️ Commands (Alpha 0.0.1)
+
+```bash
 Command
 Description
 filu-x init <user>
@@ -136,7 +138,7 @@ filu-x feed
 Show your feed (your posts in alpha)
 🔑 Key insight: Commands manipulate files – not a database.
 cat ~/.local/share/filu-x/data/public/posts/*.json works just like any other file.
-
+```
 🗺️ Roadmap
 Version
 Stage
