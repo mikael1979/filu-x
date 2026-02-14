@@ -49,7 +49,7 @@ filu-x link
 
 # Resolve someone else's content
 filu-x resolve fx://bafkreiabc123...
-```
+
 
 💡 --no-password stores keys unencrypted – for alpha testing only.
 Beta will require password-encrypted keys.
@@ -99,7 +99,7 @@ All content verified locally before rendering
         ├── follow_list.json   # Who you follow (optional sharing)
         └── posts/
             └── 20260214_120000_hello.json  # Signed post
-
+```
 graph LR
     A[Create post] --> B(Sign with Ed25519)
     B --> C{Sync mode?}
