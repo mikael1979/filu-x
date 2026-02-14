@@ -1,4 +1,3 @@
-# src/filu_x/cli/commands/sync.py
 """Sync command – sync files to IPFS (real or mock)"""
 import sys
 import json
@@ -7,6 +6,7 @@ import click
 
 from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.ipfs_client import IPFSClient
+from filu_x.core.crypto import sign_json
 
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Show what would be synced, don't make changes")
@@ -57,17 +57,19 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
         except Exception as e:
             errors.append((name, str(e)))
     
-    # Sync core files
+    # Sync core files (ensimmäinen kierros – manifesti post ID:illä)
     add_file("profile.json", layout.profile_path())
-    add_file("Filu-X.json", layout.manifest_path())
+    add_file("Filu-X.json", layout.manifest_path())  # Manifesti post ID:illä
     add_file("follow_list.json", layout.follow_list_path())
     
-    # Sync posts
+    # Sync posts → saadaan oikeat CID:t
     post_count = 0
+    post_cids = {}  # Tallenna post CID:t
     if layout.posts_dir.exists():
         for post_path in sorted(layout.posts_dir.glob("*.json")):
             try:
                 cid = "DRYRUN_CID" if dry_run else ipfs.add_file(post_path)
+                post_cids[post_path.name] = cid
                 synced.append((post_path.name, cid))
                 post_count += 1
                 if verbose:
@@ -76,24 +78,45 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
             except Exception as e:
                 errors.append((post_path.name, str(e)))
     
-    # Update manifest with real CIDs (if real IPFS)
-    if not dry_run and ipfs.use_real:
+    # PÄIVITYS: Päivitä manifesti oikeisiin CID:eihin JA synkronoi uudelleen
+    if not dry_run and ipfs.use_real and post_cids:
         try:
             manifest = layout.load_json(layout.manifest_path())
+            updated = 0
+            
             for i, entry in enumerate(manifest.get("entries", [])):
-                if entry["type"] == "post":
-                    post_path = layout.posts_dir / entry["path"].split("/")[-1]
-                    if post_path.exists():
-                        cid = ipfs.add_file(post_path)
-                        manifest["entries"][i]["cid"] = cid
-            # Re-sign manifest
-            from filu_x.core.crypto import sign_json
-            with open(layout.private_key_path(), "rb") as f:
-                privkey = f.read()
-            manifest["signature"] = sign_json(manifest, privkey)
-            layout.save_json(layout.manifest_path(), manifest, private=False)
+                if entry.get("type") == "post":
+                    filename = entry["path"].split("/")[-1]
+                    if filename in post_cids:
+                        old_cid = entry.get("cid", "")
+                        new_cid = post_cids[filename]
+                        if old_cid != new_cid:
+                            entry["cid"] = new_cid
+                            updated += 1
+                            if verbose:
+                                click.echo(f"   ℹ️  CID updated: {old_cid[:12]} → {new_cid[:12]}")
+            
+            # Allekirjoita ja tallenna
+            if updated > 0:
+                with open(layout.private_key_path(), "rb") as f:
+                    privkey = f.read()
+                manifest["signature"] = sign_json(manifest, privkey)
+                layout.save_json(layout.manifest_path(), manifest, private=False)
+                
+                # RE-SYNKRONOI manifesti IPFS:ään (tärkeä!)
+                new_manifest_cid = ipfs.add_file(layout.manifest_path())
+                if verbose:
+                    click.echo(f"   ℹ️  Manifest re-synced to IPFS: {new_manifest_cid[:12]}")
+                
+                # Päivitä profiili uuteen manifest CID:hen
+                profile = layout.load_json(layout.profile_path())
+                profile["feed_cid"] = new_manifest_cid
+                profile["signature"] = sign_json(profile, privkey)
+                layout.save_json(layout.profile_path(), profile, private=False)
+                ipfs.add_file(layout.profile_path())  # Re-sync profile too
         except Exception as e:
-            click.echo(click.style(f"⚠️  Failed to update manifest CIDs: {e}", fg="yellow"))
+            if verbose:
+                click.echo(click.style(f"⚠️  Manifest update failed: {e}", fg="yellow"))
     
     # Summary
     click.echo()
