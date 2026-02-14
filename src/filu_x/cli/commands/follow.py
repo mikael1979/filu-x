@@ -1,4 +1,3 @@
-# src/filu_x/cli/commands/follow.py
 """Follow command – add users to your follow list by fx:// link"""
 import sys
 import json
@@ -70,7 +69,7 @@ def follow(target: str, alias: str = None, force: bool = False):
             profile_data = resolver.resolve_content(cid, skip_cache=False)
             
             # Verify this is a profile (not a post)
-            if "author" not in profile_data or "feed_cid" not in profile_
+            if "author" not in profile_data or "feed_cid" not in profile_data:
                 click.echo(click.style(
                     "⚠️  Warning: Target may not be a profile (missing 'author' or 'feed_cid' fields)",
                     fg="yellow"
