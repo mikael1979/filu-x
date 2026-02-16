@@ -1,17 +1,18 @@
 """Resolve command – fetch and verify remote Filu-X content"""
 import sys
 import click
-from datetime import datetime
 
+from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.resolver import LinkResolver, ResolutionError, SecurityError
 from filu_x.core.ipfs_client import IPFSClient
 
 @click.command()
+@click.pass_context
 @click.argument("link")
 @click.option("--raw", is_flag=True, help="Show raw JSON instead of formatted content")
 @click.option("--no-cache", is_flag=True, help="Skip cache and fetch fresh from IPFS")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed verification info")
-def resolve(link: str, raw: bool, no_cache: bool, verbose: bool):
+def resolve(ctx, link: str, raw: bool, no_cache: bool, verbose: bool):
     """
     Resolve and display Filu-X content from fx:// link.
     
@@ -22,15 +23,18 @@ def resolve(link: str, raw: bool, no_cache: bool, verbose: bool):
       filu-x resolve "fx://bafkrei...?author=ed25519:8a1b&type=post"
       filu-x resolve fx://bafkrei... --raw
     """
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
+    
+    # Initialize resolver
+    ipfs = IPFSClient(mode="auto")
+    resolver = LinkResolver(ipfs_client=ipfs)
+    
+    # Parse link
+    if verbose:
+        click.echo(click.style(f"🔍 Parsing link: {link}", fg="cyan"))
+    
     try:
-        # Initialize resolver
-        ipfs = IPFSClient(mode="auto")
-        resolver = LinkResolver(ipfs_client=ipfs)
-        
-        # Parse link
-        if verbose:
-            click.echo(click.style(f"🔍 Parsing link: {link}", fg="cyan"))
-        
         parsed = resolver.parse_fx_link(link)
         cid = parsed["cid"]
         
@@ -60,6 +64,7 @@ def resolve(link: str, raw: bool, no_cache: bool, verbose: bool):
         if created_at != "unknown":
             # Format timestamp nicely
             try:
+                from datetime import datetime
                 dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 click.echo(f"   Created: {dt.strftime('%Y-%m-%d %H:%M:%S UTC')}")
             except:

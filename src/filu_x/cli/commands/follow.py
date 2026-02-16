@@ -10,10 +10,11 @@ from filu_x.core.ipfs_client import IPFSClient
 from filu_x.core.crypto import sign_json
 
 @click.command()
+@click.pass_context
 @click.argument("target")
 @click.option("--alias", "-a", help="Custom display name for this user")
 @click.option("--force", is_flag=True, help="Skip signature verification (use with caution!)")
-def follow(target: str, alias: str = None, force: bool = False):
+def follow(ctx, target: str, alias: str = None, force: bool = False):
     """
     Follow a user by fx:// profile link.
     
@@ -24,7 +25,8 @@ def follow(target: str, alias: str = None, force: bool = False):
       filu-x follow fx://bafkreiabc123...
       filu-x follow fx://bafkreiabc123... --alias Alice
     """
-    layout = FiluXStorageLayout()
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
     
     # 1. Verify user is initialized
     if not layout.profile_path().exists():
@@ -68,7 +70,7 @@ def follow(target: str, alias: str = None, force: bool = False):
             click.echo(click.style(f"🔍 Verifying profile signature...", fg="cyan"))
             profile_data = resolver.resolve_content(cid, skip_cache=False)
             
-            # Verify this is a profile (not a post)
+            # Verify this is a profile (not a post) - CORRECTED LINE BELOW
             if "author" not in profile_data or "feed_cid" not in profile_data:
                 click.echo(click.style(
                     "⚠️  Warning: Target may not be a profile (missing 'author' or 'feed_cid' fields)",

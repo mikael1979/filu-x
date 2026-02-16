@@ -9,17 +9,19 @@ from filu_x.core.ipfs_client import IPFSClient
 from filu_x.core.crypto import sign_json
 
 @click.command()
+@click.pass_context
 @click.option("--dry-run", is_flag=True, help="Show what would be synced, don't make changes")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--force-mock", is_flag=True, help="Force mock IPFS mode")
-def sync(dry_run: bool, verbose: bool, force_mock: bool):
+def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
     """
     Sync local files to IPFS (real or mock).
     
     Automatically uses real IPFS daemon if available at http://127.0.0.1:5001.
     Falls back to mock mode if daemon is not running.
     """
-    layout = FiluXStorageLayout()
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
     
     if not layout.profile_path().exists():
         click.echo(click.style(
@@ -57,14 +59,14 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
         except Exception as e:
             errors.append((name, str(e)))
     
-    # Sync core files (ensimmäinen kierros – manifesti post ID:illä)
+    # Sync core files (first pass – manifest with post IDs)
     add_file("profile.json", layout.profile_path())
-    add_file("Filu-X.json", layout.manifest_path())  # Manifesti post ID:illä
+    add_file("Filu-X.json", layout.manifest_path())  # Manifest with post IDs
     add_file("follow_list.json", layout.follow_list_path())
     
-    # Sync posts → saadaan oikeat CID:t
+    # Sync posts → get real CIDs
     post_count = 0
-    post_cids = {}  # Tallenna post CID:t
+    post_cids = {}  # Store post CIDs
     if layout.posts_dir.exists():
         for post_path in sorted(layout.posts_dir.glob("*.json")):
             try:
@@ -78,7 +80,7 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
             except Exception as e:
                 errors.append((post_path.name, str(e)))
     
-    # PÄIVITYS: Päivitä manifesti oikeisiin CID:eihin JA synkronoi uudelleen
+    # UPDATE: Update manifest with real CIDs AND re-sync to IPFS
     if not dry_run and ipfs.use_real and post_cids:
         try:
             manifest = layout.load_json(layout.manifest_path())
@@ -96,19 +98,19 @@ def sync(dry_run: bool, verbose: bool, force_mock: bool):
                             if verbose:
                                 click.echo(f"   ℹ️  CID updated: {old_cid[:12]} → {new_cid[:12]}")
             
-            # Allekirjoita ja tallenna
+            # Re-sign and save
             if updated > 0:
                 with open(layout.private_key_path(), "rb") as f:
                     privkey = f.read()
                 manifest["signature"] = sign_json(manifest, privkey)
                 layout.save_json(layout.manifest_path(), manifest, private=False)
                 
-                # RE-SYNKRONOI manifesti IPFS:ään (tärkeä!)
+                # RE-SYNC manifest to IPFS (critical!)
                 new_manifest_cid = ipfs.add_file(layout.manifest_path())
                 if verbose:
                     click.echo(f"   ℹ️  Manifest re-synced to IPFS: {new_manifest_cid[:12]}")
                 
-                # Päivitä profiili uuteen manifest CID:hen
+                # Update profile with new manifest CID
                 profile = layout.load_json(layout.profile_path())
                 profile["feed_cid"] = new_manifest_cid
                 profile["signature"] = sign_json(profile, privkey)

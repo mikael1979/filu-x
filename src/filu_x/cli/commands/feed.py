@@ -64,9 +64,10 @@ def collect_posts(layout, limit: int) -> list:
     return posts[:limit]
 
 @click.command()
+@click.pass_context
 @click.option("--limit", "-l", default=20, help="Maximum number of posts to show")
 @click.option("--raw", is_flag=True, help="Show raw JSON instead of formatted view")
-def feed(limit: int, raw: bool):
+def feed(ctx, limit: int, raw: bool):
     """
     Show your feed – posts from you and followed users.
     
@@ -77,7 +78,8 @@ def feed(limit: int, raw: bool):
       filu-x feed --limit 10
       filu-x sync-followed && filu-x feed
     """
-    layout = FiluXStorageLayout()
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
     
     # Verify user is initialized
     if not layout.profile_path().exists():
@@ -157,7 +159,7 @@ def feed(limit: int, raw: bool):
     
     click.echo()
     click.echo(click.style(
-        f"✨ Showing {len(posts)}/{total_own + total_cached} posts (alpha 0.0.2)",
+        f"✨ Showing {len(posts)}/{total_own + total_cached} posts (alpha 0.0.3)",
         fg="blue"
     ))
     click.echo()

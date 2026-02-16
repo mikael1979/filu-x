@@ -1,4 +1,3 @@
-# src/filu_x/cli/commands/link.py
 """Link command – generate shareable fx:// links"""
 import sys
 import click
@@ -7,11 +6,12 @@ from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.ipfs_client import IPFSClient
 
 @click.command()
+@click.pass_context
 @click.argument("target", default="latest")
 @click.option("--profile", is_flag=True, help="Generate link to profile")
 @click.option("--qr", is_flag=True, help="Generate QR code (requires qrcode)")
 @click.option("--force-mock", is_flag=True, help="Force mock IPFS mode")
-def link(target: str, profile: bool, qr: bool, force_mock: bool):
+def link(ctx, target: str, profile: bool, qr: bool, force_mock: bool):
     """
     Generate shareable fx:// link to your content.
     
@@ -25,7 +25,8 @@ def link(target: str, profile: bool, qr: bool, force_mock: bool):
       filu-x link --profile      # Profile link
       filu-x link 20260201_hello # Specific post
     """
-    layout = FiluXStorageLayout()
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
     
     if not layout.profile_path().exists():
         click.echo(click.style(

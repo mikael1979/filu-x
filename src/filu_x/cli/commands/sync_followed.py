@@ -9,9 +9,10 @@ from filu_x.core.resolver import LinkResolver, ResolutionError
 from filu_x.core.ipfs_client import IPFSClient
 
 @click.command()
+@click.pass_context
 @click.option("--limit", "-l", default=10, help="Max posts per followed user")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed sync progress")
-def sync_followed(limit: int, verbose: bool):
+def sync_followed(ctx, limit: int, verbose: bool):
     """
     Sync latest posts from followed users into local cache.
     
@@ -21,7 +22,8 @@ def sync_followed(limit: int, verbose: bool):
     Example:
       filu-x sync-followed --limit 5
     """
-    layout = FiluXStorageLayout()
+    data_dir = ctx.obj.get("data_dir")
+    layout = FiluXStorageLayout(base_path=data_dir)
     
     # Verify user is initialized
     if not layout.profile_path().exists():
