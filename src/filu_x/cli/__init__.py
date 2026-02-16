@@ -12,7 +12,7 @@ from .commands.follow import follow
 from .commands.feed import feed
 from .commands.sync_followed import sync_followed
 from .commands.ls import ls
-from .commands.rm import rm  # NEW IMPORT
+from .commands.rm import rm
 
 @click.group()
 @click.version_option(version="0.0.4", prog_name="filu-x")
@@ -47,7 +47,7 @@ cli.add_command(follow)
 cli.add_command(feed)
 cli.add_command(sync_followed)
 cli.add_command(ls)
-cli.add_command(rm)  # NEW COMMAND
+cli.add_command(rm)
 
 if __name__ == "__main__":
     cli()

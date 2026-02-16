@@ -66,6 +66,29 @@ def ls(ctx, posts: bool, follows: bool, raw: bool):
                 click.echo(click.style("📭 No posts yet", fg="yellow"))
                 click.echo()
     
+    # Lisää TÄMÄ posts-kokoelman jälkeen (noin rivi 45):
+
+        # Collect reposts
+        if layout.posts_dir.exists():
+            for post_path in sorted(layout.posts_dir.glob("*.json"), reverse=True):
+                try:
+                    post = layout.load_json(post_path)
+                    if post.get("type") == "repost":
+                        posts.append({
+                            "author": post.get("author", "unknown"),
+                            "author_normalized": normalize_display_name(post.get("author", "unknown")),
+                            "pubkey_suffix": post.get("pubkey", "")[:6],
+                            "content": post.get("comment", ""),
+                            "created_at": post.get("created_at", ""),
+                            "cid": post.get("id", post_path.stem),
+                            "source": "own",
+                            "type": "repost",
+                            "original_author": post.get("original_author", "unknown"),
+                            "original_post_cid": post.get("original_post_cid", "")[:12]
+                        })
+                except Exception:
+                    continue
+    
     # Show follows
     if not posts or follows:
         follow_list_path = layout.follow_list_path()
