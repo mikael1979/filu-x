@@ -1,4 +1,4 @@
-"""Follow command – add users to your follow list by fx:// link"""
+"""Follow command – add users to your follow list by fx:// link with collision detection"""
 import sys
 import json
 from datetime import datetime, timezone
@@ -8,6 +8,7 @@ from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.resolver import LinkResolver, ResolutionError, SecurityError
 from filu_x.core.ipfs_client import IPFSClient
 from filu_x.core.crypto import sign_json
+from filu_x.core.id_generator import detect_display_name_collision, normalize_display_name  # NEW IMPORT
 
 @click.command()
 @click.pass_context
@@ -18,12 +19,8 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
     """
     Follow a user by fx:// profile link.
     
-    The target must be a profile link (fx://bafkrei...) – not a post link.
-    Filu-X will verify the cryptographic signature before adding to your follow list.
-    
-    Examples:
-      filu-x follow fx://bafkreiabc123...
-      filu-x follow fx://bafkreiabc123... --alias Alice
+    Detects display name collisions (same @name, different pubkey) and warns user.
+    Identity is cryptographic (pubkey), not social (display name).
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
@@ -70,7 +67,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
             click.echo(click.style(f"🔍 Verifying profile signature...", fg="cyan"))
             profile_data = resolver.resolve_content(cid, skip_cache=False)
             
-            # Verify this is a profile (not a post) - CORRECTED LINE BELOW
+            # Verify this is a profile (not a post)
             if "author" not in profile_data or "feed_cid" not in profile_data:
                 click.echo(click.style(
                     "⚠️  Warning: Target may not be a profile (missing 'author' or 'feed_cid' fields)",
@@ -80,7 +77,37 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
                     sys.exit(1)
             
             author = profile_data.get("author", cid[:12])
-            pubkey_preview = profile_data.get("pubkey", "")[:12] + "..."
+            pubkey = profile_data.get("pubkey", "")
+            pubkey_preview = pubkey[:12] + "..."
+            
+            # ✅ COLLISION DETECTION: Check if display name already followed with different pubkey
+            follow_list_path = layout.follow_list_path()
+            existing_follows = []
+            if follow_list_path.exists():
+                follow_list = layout.load_json(follow_list_path)
+                existing_follows = follow_list.get("follows", [])
+            
+            collision = detect_display_name_collision(
+                display_name=author,
+                pubkey=pubkey,
+                existing_follows=existing_follows
+            )
+            
+            if collision:
+                click.echo(click.style(
+                    f"⚠️  DISPLAY NAME COLLISION DETECTED",
+                    fg="yellow",
+                    bold=True
+                ))
+                click.echo(f"   You already follow '{collision['existing_user']}' with pubkey:")
+                click.echo(f"     {collision['existing_pubkey_suffix']}")
+                click.echo(f"   This profile '{author}' has DIFFERENT pubkey:")
+                click.echo(f"     {collision['new_pubkey_suffix']}")
+                click.echo()
+                click.echo("💡 This is NOT an error – display names can collide in decentralized systems.")
+                click.echo("   Identity is defined by pubkey, not display name.")
+                if not click.confirm("Follow this user anyway?"):
+                    sys.exit(1)
             
             click.echo(click.style(
                 f"✅ Verified profile: {author} (pubkey: {pubkey_preview})",
@@ -90,7 +117,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
             # Force mode: skip resolution
             profile_data = None
             author = alias or cid[:12]
-            pubkey_preview = "unknown"
+            pubkey = "unknown"
             click.echo(click.style(
                 "⚠️  Skipping verification (--force mode)",
                 fg="yellow"
@@ -128,10 +155,10 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
             "signature": ""
         }
     
-    # Check if already following
-    if any(f["profile_cid"] == cid for f in follows):
+    # Check if already following (by pubkey, not display name!)
+    if any(f.get("pubkey") == pubkey for f in follows):
         click.echo(click.style(
-            f"⚠️  You already follow this user",
+            f"⚠️  You already follow this user (same pubkey)",
             fg="yellow"
         ))
         sys.exit(0)
@@ -142,7 +169,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
         "user": alias or author,
         "profile_link": f"fx://{cid}",
         "profile_cid": cid,
-        "pubkey": profile_data.get("pubkey", "unknown") if profile_data else "unknown",
+        "pubkey": pubkey,
         "discovered_via": "manual",
         "discovered_at": now,
         "last_sync": now,
@@ -160,13 +187,20 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
     
     # 6. Show result
     display_name = alias or author
+    
+    # ✅ Show pubkey suffix if collision possible
+    collision_suffix = ""
+    if collision:
+        collision_suffix = f" ({pubkey[:6]})"
+    
     click.echo()
     click.echo(click.style(
-        f"✅ Now following {display_name}",
+        f"✅ Now following {display_name}{collision_suffix}",
         fg="green",
         bold=True
     ))
     click.echo(f"   Profile: fx://{cid}")
+    click.echo(f"   Pubkey: {pubkey[:12]}...")
     click.echo(f"   Posts: will appear in feed after sync")
     
     # Suggest next steps

@@ -1,13 +1,15 @@
 {
-  "$schema": "https://filu-x.org/schemas/profile-v{{ version }}.json",
+  "$schema": "https://filu-x.org/schemas/profile-v0.0.1.json",
   "version": "{{ version }}",
-  "author": "@{{ username }}",
   "pubkey": "{{ pubkey }}",
-  "display_name": "{{ display_name }}",
-  "bio": "{{ bio }}",
-  "avatar_cid": null,
-  "links": [],
-  "feed_cid": null,
+  "display_name": "@{{ username }}",
+  "display_name_normalized": "{{ username | lower }}",
+  "author": "@{{ username }}",
+  "feed_cid": "{{ feed_cid }}",
+  "bio": "",
+  "avatar_url": "",
+  "created_at": "{{ now_iso8601 }}",
   "updated_at": "{{ now_iso8601 }}",
+  "access_points": [],
   "signature": "{{ signature }}"
 }

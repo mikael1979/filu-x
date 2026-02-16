@@ -1,4 +1,4 @@
-"""Feed command – show posts from you and followed users"""
+"""Feed command – show posts from you and followed users with collision-aware rendering"""
 import sys
 import click
 from pathlib import Path
@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 
 from filu_x.storage.layout import FiluXStorageLayout
+from filu_x.core.id_generator import normalize_display_name  # NEW IMPORT
 
 def collect_posts(layout, limit: int) -> list:
     """
@@ -13,6 +14,8 @@ def collect_posts(layout, limit: int) -> list:
     
     Returns list of post dicts with keys:
       - author: display name
+      - author_normalized: normalized display name (for collision detection)
+      - pubkey_suffix: first 6 chars of pubkey (for disambiguation)
       - content: post text
       - created_at: ISO8601 timestamp
       - cid: content ID
@@ -27,6 +30,8 @@ def collect_posts(layout, limit: int) -> list:
                 post = layout.load_json(post_path)
                 posts.append({
                     "author": post.get("author", "unknown"),
+                    "author_normalized": normalize_display_name(post.get("author", "unknown")),
+                    "pubkey_suffix": post.get("pubkey", "")[:6],
                     "content": post.get("content", ""),
                     "created_at": post.get("created_at", ""),
                     "cid": post.get("id", post_path.stem),
@@ -51,9 +56,11 @@ def collect_posts(layout, limit: int) -> list:
                     post = json.loads(post_path.read_text(encoding="utf-8"))
                     posts.append({
                         "author": post.get("author", user_dir.name),
+                        "author_normalized": normalize_display_name(post.get("author", user_dir.name)),
+                        "pubkey_suffix": post.get("pubkey", "")[:6],
                         "content": post.get("content", ""),
                         "created_at": post.get("created_at", ""),
-                        "cid": post_path.stem,  # Filename = CID
+                        "cid": post_path.stem,
                         "source": "followed"
                     })
                 except Exception:
@@ -63,6 +70,29 @@ def collect_posts(layout, limit: int) -> list:
     posts.sort(key=lambda x: x["created_at"], reverse=True)
     return posts[:limit]
 
+
+def render_author(post: dict, all_posts: list) -> str:
+    """
+    Render author name with pubkey suffix if display name collision detected.
+    
+    Collision = same normalized display name but different pubkey suffix in feed.
+    """
+    author = post["author"]
+    normalized = post["author_normalized"]
+    pubkey_suffix = post["pubkey_suffix"]
+    
+    # Check if any other post in feed has same normalized name but different pubkey
+    has_collision = any(
+        p["author_normalized"] == normalized and p["pubkey_suffix"] != pubkey_suffix
+        for p in all_posts
+    )
+    
+    if has_collision:
+        return f"{author} ({pubkey_suffix})"
+    else:
+        return author
+
+
 @click.command()
 @click.pass_context
 @click.option("--limit", "-l", default=20, help="Maximum number of posts to show")
@@ -71,12 +101,8 @@ def feed(ctx, limit: int, raw: bool):
     """
     Show your feed – posts from you and followed users.
     
-    Alpha 0.0.2: Includes cached posts from followed users.
-    Run 'filu-x sync-followed' first to fetch followed users' posts.
-    
-    Example:
-      filu-x feed --limit 10
-      filu-x sync-followed && filu-x feed
+    Alpha 0.0.3: Includes cached posts from followed users.
+    Collision-aware: Shows pubkey suffix when display names collide.
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
@@ -128,8 +154,8 @@ def feed(ctx, limit: int, raw: bool):
             if i < len(posts):
                 click.echo("---")
         else:
-            # Human-readable format
-            author = post["author"]
+            # Human-readable format with collision-aware author rendering
+            author_display = render_author(post, posts)
             content = post["content"].strip()
             created = post["created_at"]
             source = post["source"]
@@ -143,9 +169,9 @@ def feed(ctx, limit: int, raw: bool):
             
             # Show post with source indicator
             if source == "followed":
-                click.echo(f"[{time_str}] {author} 🔁")
+                click.echo(f"[{time_str}] {author_display} 🔁")
             else:
-                click.echo(f"[{time_str}] {author}")
+                click.echo(f"[{time_str}] {author_display}")
             
             click.echo(f"  {content}")
             click.echo(f"  fx://{post['cid']}")
@@ -167,3 +193,24 @@ def feed(ctx, limit: int, raw: bool):
     click.echo("   • Sync followed users: filu-x sync-followed")
     click.echo("   • Sync your posts:     filu-x sync")
     click.echo("   • Follow new users:    filu-x follow fx://bafkrei...")
+    
+    # ✅ Show collision explanation if detected
+    normalized_names = {}
+    for post in posts:
+        norm = post["author_normalized"]
+        suffix = post["pubkey_suffix"]
+        normalized_names.setdefault(norm, set()).add(suffix)
+    
+    collisions = {name: suffixes for name, suffixes in normalized_names.items() if len(suffixes) > 1}
+    
+    if collisions:
+        click.echo()
+        click.echo(click.style(
+            "⚠️  Display name collisions in feed:",
+            fg="yellow",
+            bold=True
+        ))
+        for name, suffixes in collisions.items():
+            click.echo(f"   • '{name}' used by pubkeys: {', '.join(sorted(suffixes))}")
+        click.echo()
+        click.echo("💡 Identity is cryptographic (pubkey), not social (display name).")

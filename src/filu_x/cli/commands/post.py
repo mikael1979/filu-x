@@ -1,4 +1,4 @@
-"""Post command – create signed posts"""
+"""Post command – create signed posts with deterministic IDs"""
 import sys
 import re
 from datetime import datetime, timezone
@@ -15,19 +15,14 @@ except ImportError:
 from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.crypto import sign_json
 from filu_x.core.templates import TemplateEngine
-
-def generate_post_id(content: str, timestamp: datetime) -> str:
-    slug = slugify(content[:30], max_length=20)
-    if not slug or slug == "-":
-        slug = "post"
-    return f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{slug}"
+from filu_x.core.id_generator import generate_post_id  # NEW IMPORT
 
 @click.command()
 @click.pass_context
 @click.argument("content")
 @click.option("--tags", "-t", help="Tags separated by commas (e.g. python,ipfs)")
 def post(ctx, content: str, tags: str = None):
-    """Create a new post and save it locally"""
+    """Create a new post and save it locally with deterministic ID"""
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
     
@@ -47,7 +42,13 @@ def post(ctx, content: str, tags: str = None):
         sys.exit(1)
     
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    post_id = generate_post_id(content, datetime.now())
+    
+    # ✅ GENERATE DETERMINISTIC ID (pubkey + timestamp + content)
+    post_id = generate_post_id(
+        pubkey=profile["pubkey"],
+        timestamp=now,
+        content=content
+    )
     
     prev_post_cid = None
     if layout.manifest_path().exists():
@@ -59,8 +60,8 @@ def post(ctx, content: str, tags: str = None):
     engine = TemplateEngine()
     post_data = engine.render_post({
         "version": "0.0.1",
-        "post_id": post_id,
-        "username": profile["author"].lstrip("@"),
+        "post_id": post_id,  # ✅ DETERMINISTIC ID
+        "username": profile["author"].lstrip("@"),  # Still used for display
         "pubkey": profile["pubkey"],
         "content": content,
         "prev_post_cid": prev_post_cid,
@@ -71,7 +72,7 @@ def post(ctx, content: str, tags: str = None):
     })
     
     post_data["signature"] = sign_json(post_data, privkey_bytes)
-    post_path = layout.post_path(post_id)
+    post_path = layout.post_path(post_id)  # ✅ Filename = deterministic ID
     layout.save_json(post_path, post_data, private=False)
     
     if layout.manifest_path().exists():
@@ -87,8 +88,8 @@ def post(ctx, content: str, tags: str = None):
         }
     
     manifest["entries"].append({
-        "path": f"posts/{post_id}.json",
-        "cid": post_id,
+        "path": f"posts/{post_id}.json",  # ✅ Path uses deterministic ID
+        "cid": post_id,  # ✅ CID = deterministic ID (no more post_id → CID update!)
         "type": "post",
         "priority": len(manifest["entries"]) + 1
     })
@@ -96,7 +97,7 @@ def post(ctx, content: str, tags: str = None):
     manifest["signature"] = sign_json(manifest, privkey_bytes)
     layout.save_json(layout.manifest_path(), manifest, private=False)
     
-    profile["feed_cid"] = post_id
+    profile["feed_cid"] = post_id  # ✅ feed_cid = deterministic ID
     profile["updated_at"] = now
     profile["signature"] = sign_json(profile, privkey_bytes)
     layout.save_json(layout.profile_path(), profile, private=False)
