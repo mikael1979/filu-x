@@ -108,12 +108,15 @@ def init(ctx, username: str, no_password: bool):
     manifest["signature"] = sign_json(manifest, priv_key_bytes)
     layout.save_json(layout.manifest_path(), manifest, private=False)
     
-    # Private config
+    # Private config – WITH NEW TEMPLATE VARIABLES
     private_config = engine.render_private_config({
         "version": "0.0.1",
         "username": username,
         "pubkey": pub_key_bytes.hex(),
-        "encrypted": bool(password)
+        "encrypted": bool(password),
+        "last_used_data_dir": str(layout.base_path),  # ✅ UUSI: tallenna nykyinen hakemisto
+        "default_profile_link": "",                    # ✅ UUSI: tyhjä aluksi
+        "recent_links": []                             # ✅ UUSI: tyhjä lista
     })
     layout.save_json(layout.private_config_path(), private_config, private=True)
     

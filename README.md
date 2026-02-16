@@ -178,6 +178,22 @@ FILU_X_DATA_DIR=./test_data/charlie filu-x init charlie --no-password
 | 0.1.x     | Beta        | Password-encrypted keys, Nostr notifications, Web UI              |
 | 1.0.0     | Stable      | Multi-protocol fallback, reposts, ActivityPub bridge              |
 
+## 🗑️ Data Ownership: You Control Deletion
+
+Filu-X gives you **full control** – including safe deletion:
+
+```bash
+# Delete specific post (first 8+ chars of ID accepted)
+filu-x rm 11654937
+
+# Preview before deleting
+filu-x rm 11654937 --dry-run
+
+# Delete without confirmation
+filu-x rm 11654937 --force
+
+# Clear cache from followed users
+filu-x rm --cache
 
 See TODO.md for detailed development plan.
 
@@ -194,6 +210,19 @@ Filu-X embraces protocol diversity without lock-in:
 
 Filu-X doesn't replace protocols – it composes them.
 Your data remains yours, regardless of transport layer.
+
+### Known Limitations (Alpha 0.0.4)
+
+Filu-X alpha is **development software** – not for production use.
+
+| Limitation | Why it exists | Fixed in |
+|------------|---------------|----------|
+| Private keys unencrypted | Simplifies alpha development | Beta 0.1.0 (password encryption) |
+| Manifest verification skipped | Alpha limitation for simplicity | Beta 0.1.0 (full verification) |
+| No private messaging | Not implemented yet | Beta 0.2.0 (encrypted groups) |
+
+⚠️ **Do not use alpha for sensitive communications.**  
+Keys are stored unencrypted – anyone with file access can impersonate you.
 
 📜 License
 Filu-X is licensed under the Apache License 2.0 – see LICENSE for details.

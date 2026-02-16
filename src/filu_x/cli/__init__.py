@@ -12,9 +12,10 @@ from .commands.follow import follow
 from .commands.feed import feed
 from .commands.sync_followed import sync_followed
 from .commands.ls import ls
+from .commands.rm import rm  # NEW IMPORT
 
 @click.group()
-@click.version_option(version="0.0.3", prog_name="filu-x")
+@click.version_option(version="0.0.4", prog_name="filu-x")
 @click.option(
     "--data-dir",
     type=click.Path(file_okay=False),
@@ -28,10 +29,8 @@ def cli(ctx, data_dir: str):
     
     All data is stored as plain JSON files. No servers required.
     """
-    # Initialize context dict
     ctx.ensure_object(dict)
     
-    # Priority order: 1) CLI flag, 2) env var, 3) None (use default in layout)
     if data_dir:
         ctx.obj["data_dir"] = Path(data_dir).resolve()
     elif "FILU_X_DATA_DIR" in os.environ:
@@ -48,6 +47,7 @@ cli.add_command(follow)
 cli.add_command(feed)
 cli.add_command(sync_followed)
 cli.add_command(ls)
+cli.add_command(rm)  # NEW COMMAND
 
 if __name__ == "__main__":
     cli()
