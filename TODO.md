@@ -49,6 +49,15 @@
 - [ ] QR code generation for links
 - [ ] Mobile app prototype (Flutter)
 
+
+
+### Social Features (P1)
+- [ ] Repost/Boost with attribution
+  - [ ] `filu-x repost <link>` command
+  - [ ] Store as `type: "repost"` with `original_post_cid`
+  - [ ] Render in feed with 🔁 icon + attribution
+  - [ ] Verify original post at view time (alpha limitation lifted in beta)
+
 ## Stable Phase (1.0.0)
 
 - [ ] Multi-protocol fallback (IPFS → HTTP → Nostr)

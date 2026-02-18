@@ -20,6 +20,125 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 &gt; "In a decentralized world, display names can collide.  
 &gt; Identity is cryptographic – your pubkey defines who you are."
 
+
+---
+
+## Filu-X Core Principle
+
+```
+┌─────────────────────────────────────────┐
+│         ANY PROTOCOL → SAME RESULT      │
+│                                         │
+│  IPFS: bafkrei...  ─┐                   │
+│  Nostr: note1...   ─┼→  DOWNLOAD  ─→  FILE  ─→  FEED │
+│  HTTP: https://... ─┘        ↑           ↑      ↑     │
+│                              │           │      │     │
+│                         ┌────┴───────────┴──────┘     │
+│                         │   PROTOCOL-AGNOSTIC CORE    │
+│                         │   (crypto, templates, layout) │
+│                         └─────────────────────────────┘
+│                                         │
+│  Feed generation is always:             │
+│  1. List ~/.local/share/filu-x/...      │
+│  2. Parse JSON files                    │
+│  3. Validate signatures                 │
+│  4. Display chronologically             │
+│                                         │
+│  💡 Protocol is just "transport"        │
+│     Data is always the same format        │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Why This Is Elegant
+
+| Protocol | What It Does | What Filu-X Does |
+|----------|--------------|------------------|
+| **IPFS** | Fetches by CID | Saves to `posts/`, parses, displays |
+| **Nostr** | Fetches by event | Saves to `posts/`, parses, displays |
+| **HTTP** | Fetches by URL | Saves to `posts/`, parses, displays |
+| **USB** | Copies file | Saves to `posts/`, parses, displays |
+
+**Feed code never changes:**
+```python
+# feed.py - completely protocol-agnostic
+for post_path in layout.posts_dir.glob("*.json"):
+    post = layout.load_json(post_path)  # ← Doesn't care where it came from!
+    verify_signature(post)              # ← Always Ed25519
+    display(post)                       # ← Always same format
+```
+
+---
+
+## Practical Example: Multi-Protocol Feed
+
+```
+Bob's feed (3 posts from different sources):
+
+[2026-02-16 10:00] @alice (IPFS) 🔁
+  "Alice's post"
+  fx://bafkreialice...  ← Fetched from IPFS
+
+[2026-02-16 09:30] @charlie (Nostr) 🔁  
+  "Charlie's post"
+  nostr:note1charlie... ← Fetched from Nostr
+
+[2026-02-16 09:00] @bob (Local) 
+  "Bob's own post"
+  fx://cdd5d834ce...    ← Own post
+
+💡 Source shown optionally, but feed works the same way
+```
+
+---
+
+## This Is **Unix Philosophy at Its Best**
+
+> *"Write programs to handle text streams, because that is a universal interface."*
+> — Doug McIlroy
+
+Filu-X version:
+> *"Write programs to handle JSON files, because that is a universal interface."*
+
+---
+
+## Implications
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Protocol agility** | New protocol = new "downloader", no core changes |
+| **Offline resilience** | Everything works without network once files are fetched |
+| **Debugging** | `cat posts/abc123.json` always works |
+| **Migration** | Copy files to new machine, protocol doesn't matter |
+| **Censorship resistance** | If IPFS is blocked, use Nostr/HTTP/USB... |
+
+---
+
+## Alpha 0.0.4 Is Therefore **Future-Proof**
+
+```
+Alpha 0.0.4 (now)          Beta 0.1.x (future)
+     │                            │
+     │    ┌─────────────┐         │
+     └───→│  IPFS only  │←────────┘
+          │  (built-in) │
+          └──────┬──────┘
+                 ↓
+          ┌─────────────┐
+          │  JSON files │ ← Core never changes!
+          │  (universal)│
+          └──────┬──────┘
+                 ↓
+          ┌─────────────┐
+          │  Plugins:   │
+          │  • Nostr    │
+          │  • HTTP     │
+          │  • Freenet  │
+          │  • ...      │
+          └─────────────┘
+```
+
 ---
 
 ## 🚀 Quick Start
