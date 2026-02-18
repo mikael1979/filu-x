@@ -58,6 +58,25 @@
   - [ ] Render in feed with 🔁 icon + attribution
   - [ ] Verify original post at view time (alpha limitation lifted in beta)
 
+## Beta Phase (0.1.x) – Next Milestone
+
+### Security (P0)
+- [ ] **Password-encrypted master key** (scrypt + AES-256)
+  - [ ] BIP39 seed phrase backup option (12-word recovery phrase)
+  - [ ] Master key stored offline (USB/paper), never used for daily signing
+- [ ] **Hierarchical key management** – master key authorizes signing subkeys
+  - [ ] Subkeys used for daily operations (posts, manifests, follows)
+  - [ ] Subkeys have validity periods (default: 30 days)
+  - [ ] Master key can revoke compromised subkeys
+  - [ ] `filu-x key rotate` – generate new subkey, revoke old
+  - [ ] `filu-x key revoke <subkey-id>` – emergency revocation
+  - [ ] Profile includes: `authorized_subkeys[]` with validity periods
+  - [ ] Post signature includes: `subkey_id` + `master_signature_on_subkey`
+  - [ ] Verification checks: subkey authorization chain to master key
+- [ ] Key rotation support with identity continuity
+  - [ ] Old subkeys remain valid for cached posts (backward compatibility)
+  - [ ] Feed shows warning for posts signed with revoked subkey
+
 ## Stable Phase (1.0.0)
 
 - [ ] Multi-protocol fallback (IPFS → HTTP → Nostr)
