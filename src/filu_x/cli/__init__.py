@@ -13,6 +13,8 @@ from .commands.feed import feed
 from .commands.sync_followed import sync_followed
 from .commands.ls import ls
 from .commands.rm import rm
+from .commands.repost import repost
+from .commands.thread import thread
 
 @click.group()
 @click.version_option(version="0.0.4", prog_name="filu-x")
@@ -48,6 +50,8 @@ cli.add_command(feed)
 cli.add_command(sync_followed)
 cli.add_command(ls)
 cli.add_command(rm)
+cli.add_command(repost)
+cli.add_command(thread)
 
 if __name__ == "__main__":
     cli()

@@ -1,4 +1,4 @@
-"""Feed command – show posts from you and followed users with repost support"""
+"""Feed command – show posts from you and followed users with thread support"""
 import sys
 import click
 from pathlib import Path
@@ -8,122 +8,18 @@ import json
 from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.id_generator import normalize_display_name
 
-def collect_posts(layout, limit: int) -> list:
-    """
-    Collect own posts + cached followed posts chronologically.
-    
-    Returns list of post dicts with keys:
-      - author: display name
-      - author_normalized: normalized display name (for collision detection)
-      - pubkey_suffix: first 6 chars of pubkey (for disambiguation)
-      - content: post text
-      - created_at: ISO8601 timestamp
-      - cid: content ID
-      - source: "own" or "followed"
-      - type: "post" or "repost"
-      - original_author: for reposts only
-      - original_post_cid: for reposts only
-      - comment: for reposts only
-    """
-    posts = []
-    
-    # Collect own posts
-    if layout.posts_dir.exists():
-        for post_path in sorted(layout.posts_dir.glob("*.json"), reverse=True):
-            try:
-                post = layout.load_json(post_path)
-                post_type = post.get("type", "post")
-                
-                if post_type == "repost":
-                    posts.append({
-                        "author": post.get("author", "unknown"),
-                        "author_normalized": normalize_display_name(post.get("author", "unknown")),
-                        "pubkey_suffix": post.get("pubkey", "")[:6],
-                        "content": post.get("comment", ""),
-                        "created_at": post.get("created_at", ""),
-                        "cid": post.get("id", post_path.stem),
-                        "source": "own",
-                        "type": "repost",
-                        "original_author": post.get("original_author", "unknown"),
-                        "original_post_cid": post.get("original_post_cid", ""),
-                        "comment": post.get("comment", "")
-                    })
-                else:
-                    posts.append({
-                        "author": post.get("author", "unknown"),
-                        "author_normalized": normalize_display_name(post.get("author", "unknown")),
-                        "pubkey_suffix": post.get("pubkey", "")[:6],
-                        "content": post.get("content", ""),
-                        "created_at": post.get("created_at", ""),
-                        "cid": post.get("id", post_path.stem),
-                        "source": "own",
-                        "type": "post"
-                    })
-            except Exception:
-                continue
-    
-    # Collect cached followed posts
-    cached_base = layout.base_path / "data" / "cached" / "follows"
-    if cached_base.exists():
-        for user_dir in cached_base.glob("*"):
-            if not user_dir.is_dir():
-                continue
-            
-            posts_dir = user_dir / "posts"
-            if not posts_dir.exists():
-                continue
-            
-            for post_path in posts_dir.glob("*.json"):
-                try:
-                    post = json.loads(post_path.read_text(encoding="utf-8"))
-                    post_type = post.get("type", "post")
-                    
-                    if post_type == "repost":
-                        posts.append({
-                            "author": post.get("author", user_dir.name),
-                            "author_normalized": normalize_display_name(post.get("author", user_dir.name)),
-                            "pubkey_suffix": post.get("pubkey", "")[:6],
-                            "content": post.get("comment", ""),
-                            "created_at": post.get("created_at", ""),
-                            "cid": post_path.stem,
-                            "source": "followed",
-                            "type": "repost",
-                            "original_author": post.get("original_author", "unknown"),
-                            "original_post_cid": post.get("original_post_cid", ""),
-                            "comment": post.get("comment", "")
-                        })
-                    else:
-                        posts.append({
-                            "author": post.get("author", user_dir.name),
-                            "author_normalized": normalize_display_name(post.get("author", user_dir.name)),
-                            "pubkey_suffix": post.get("pubkey", "")[:6],
-                            "content": post.get("content", ""),
-                            "created_at": post.get("created_at", ""),
-                            "cid": post_path.stem,
-                            "source": "followed",
-                            "type": "post"
-                        })
-                except Exception:
-                    continue
-    
-    # Sort newest first
-    posts.sort(key=lambda x: x["created_at"], reverse=True)
-    return posts[:limit]
-
-
 def render_post_item(post: dict, all_posts: list) -> str:
     """
-    Render a single post or repost with proper attribution.
-    
-    Returns formatted string for display.
+    Render a single post with proper type indicators and thread info.
     """
     author = post["author"]
     normalized = post["author_normalized"]
     pubkey_suffix = post["pubkey_suffix"]
-    content = post["content"].strip()
+    content = post.get("content", "").strip()
     created = post["created_at"]
-    source = post["source"]
-    post_type = post["type"]
+    post_type = post.get("type", "post")
+    thread_id = post.get("thread_id")
+    reply_count = post.get("reply_count", 0)
     
     # Format timestamp
     try:
@@ -143,40 +39,99 @@ def render_post_item(post: dict, all_posts: list) -> str:
     else:
         author_display = author
     
-    # Render based on type
+    # Choose icon based on type
     if post_type == "repost":
-        original_author = post.get("original_author", "unknown")
-        original_cid = post.get("original_post_cid", "")[:12]
-        comment = post.get("comment", "")
-        
-        lines = []
-        lines.append(f"[{time_str}] {author_display} 🔁")
-        if comment:
-            lines.append(f'  "{comment}"')
-        lines.append(f"  Reposted {original_author}")
-        lines.append(f"  Original: fx://{original_cid}...")
-        return "\n".join(lines)
+        icon = "🔁"
+    elif post_type == "vote":
+        value = post.get("value", 0)
+        icon = "👍" if value == 1 else "👎"
+    elif post_type == "reaction":
+        icon = post.get("value", "❤️")
+    elif post_type == "rating":
+        stars = "⭐" * post.get("value", 0)
+        icon = stars
+    else:
+        icon = "📝"
     
-    else:  # Regular post
-        lines = []
-        if source == "followed":
-            lines.append(f"[{time_str}] {author_display} 🔁")
-        else:
-            lines.append(f"[{time_str}] {author_display}")
+    # Build the post lines
+    lines = []
+    
+    # Header with icon
+    if icon:
+        lines.append(f"[{time_str}] {author_display} {icon}")
+    else:
+        lines.append(f"[{time_str}] {author_display}")
+    
+    # Content (if any)
+    if content:
         lines.append(f"  {content}")
-        lines.append(f"  fx://{post['cid']}")
-        return "\n".join(lines)
+    
+    # Thread indicator
+    if thread_id:
+        if reply_count > 0:
+            lines.append(f"  💬 Thread ({reply_count} replies)")
+        else:
+            lines.append(f"  💬 In thread: {thread_id[:12]}...")
+    
+    # Link
+    lines.append(f"  fx://{post['cid']}")
+    
+    return "\n".join(lines)
+
+
+def collect_posts(layout, limit: int) -> list:
+    """
+    Collect own posts + cached followed posts chronologically.
+    Now includes reaction types and thread info.
+    """
+    posts = []
+    
+    # Collect own posts
+    if layout.posts_dir.exists():
+        for post_path in sorted(layout.posts_dir.glob("*.json"), reverse=True):
+            try:
+                post = layout.load_json(post_path)
+                
+                # Base post info
+                post_entry = {
+                    "author": post.get("author", "unknown"),
+                    "author_normalized": normalize_display_name(post.get("author", "unknown")),
+                    "pubkey_suffix": post.get("pubkey", "")[:6],
+                    "content": post.get("content", ""),
+                    "created_at": post.get("created_at", ""),
+                    "cid": post.get("id", post_path.stem),
+                    "source": "own",
+                    "type": post.get("type", "post"),
+                    "thread_id": post.get("thread_id"),
+                    "reply_count": post.get("reply_count", 0)
+                }
+                
+                # Add type-specific fields
+                if "value" in post:
+                    post_entry["value"] = post["value"]
+                if "reply_to" in post:
+                    post_entry["reply_to"] = post["reply_to"]
+                
+                posts.append(post_entry)
+                
+            except Exception as e:
+                continue
+    
+    # Sort newest first
+    posts.sort(key=lambda x: x["created_at"], reverse=True)
+    return posts[:limit]
 
 
 @click.command()
 @click.pass_context
 @click.option("--limit", "-l", default=20, help="Maximum number of posts to show")
 @click.option("--raw", is_flag=True, help="Show raw JSON instead of formatted view")
-def feed(ctx, limit: int, raw: bool):
+@click.option("--threads", is_flag=True, help="Show thread structure")
+def feed(ctx, limit: int, raw: bool, threads: bool):
     """
     Show your feed – posts from you and followed users.
     
-    Alpha 0.0.4: Includes cached posts from followed users and reposts.
+    Alpha 0.0.5: Includes reactions, reposts, and thread awareness.
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
@@ -190,11 +145,7 @@ def feed(ctx, limit: int, raw: bool):
         ))
         sys.exit(1)
     
-    # Load profile for display name
-    profile = layout.load_json(layout.profile_path())
-    username = profile.get("author", "unknown")
-    
-    # Collect posts (own + cached followed)
+    # Collect posts
     posts = collect_posts(layout, limit)
     
     # Show empty feed message
@@ -209,7 +160,6 @@ def feed(ctx, limit: int, raw: bool):
         click.echo("   • Create your first post:  filu-x post 'Hello world!'")
         click.echo("   • Follow someone:          filu-x follow fx://bafkrei...")
         click.echo("   • Sync followed users:     filu-x sync-followed")
-        click.echo("   • Sync your own posts:     filu-x sync")
         sys.exit(0)
     
     # Show feed header
@@ -223,12 +173,10 @@ def feed(ctx, limit: int, raw: bool):
     # Show posts
     for i, post in enumerate(posts, 1):
         if raw:
-            # Raw JSON output
             click.echo(json.dumps(post, indent=2, ensure_ascii=False))
             if i < len(posts):
                 click.echo("---")
         else:
-            # Human-readable format with collision-aware author rendering
             rendered = render_post_item(post, posts)
             click.echo(rendered)
             if i < len(posts):
@@ -236,38 +184,15 @@ def feed(ctx, limit: int, raw: bool):
     
     # Show footer
     total_own = len(list(layout.posts_dir.glob("*.json"))) if layout.posts_dir.exists() else 0
-    cached_base = layout.base_path / "data" / "cached" / "follows"
-    total_cached = sum(1 for p in cached_base.rglob("*.json")) if cached_base.exists() else 0
     
     click.echo()
     click.echo(click.style(
-        f"✨ Showing {len(posts)}/{total_own + total_cached} posts (alpha 0.0.4)",
+        f"✨ Showing {len(posts)}/{total_own} posts (alpha 0.0.5)",
         fg="blue"
     ))
     click.echo()
     click.echo("💡 Tips:")
     click.echo("   • Sync followed users: filu-x sync-followed")
     click.echo("   • Sync your posts:     filu-x sync")
-    click.echo("   • Follow new users:    filu-x follow fx://bafkrei...")
-    click.echo("   • Repost content:      filu-x repost fx://bafkrei...")
-    
-    # Show collision explanation if detected
-    normalized_names = {}
-    for post in posts:
-        norm = post["author_normalized"]
-        suffix = post["pubkey_suffix"]
-        normalized_names.setdefault(norm, set()).add(suffix)
-    
-    collisions = {name: suffixes for name, suffixes in normalized_names.items() if len(suffixes) > 1}
-    
-    if collisions:
-        click.echo()
-        click.echo(click.style(
-            "⚠️  Display name collisions in feed:",
-            fg="yellow",
-            bold=True
-        ))
-        for name, suffixes in collisions.items():
-            click.echo(f"   • '{name}' used by pubkeys: {', '.join(sorted(suffixes))}")
-        click.echo()
-        click.echo("💡 Identity is cryptographic (pubkey), not social (display name).")
+    click.echo("   • View threads:        filu-x thread show <cid>")
+    click.echo("   • Follow threads:      filu-x thread follow <cid>")
