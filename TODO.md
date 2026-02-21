@@ -1,6 +1,3 @@
-Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
-
-```markdown
 # Filu-X Development Roadmap
 
 ## Alpha Phase (0.0.x)
@@ -30,7 +27,7 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 - [x] Display name collision detection
 - [x] Collision-aware feed rendering
 
-### 0.0.5 – Social Alpha 🚀 (CURRENT)
+### 0.0.5 – Social Alpha ✅
 
 #### Threads & Conversations
 - [x] Thread-aware participant lists (solves blind spot problem)
@@ -63,6 +60,7 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 - [x] Thread cache directory structure
 - [x] Thread configuration storage
 - [x] Updated documentation (README, TODO)
+- [x] Sneakernet test (USB-tikku simulointi)
 
 #### Bug Fixes
 - [x] Removed broken repost code from `ls.py`
@@ -70,30 +68,74 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 - [x] Added CID validation to all commands
 - [x] Improved error messages for missing content
 
-### 0.0.6 – Planned (Next)
+### 0.0.6 – Version Management & IPFS Stability 🚀 (CURRENT)
+
+#### Version Management
+- [x] Manifest versioning (`major.minor.patch.build`)
+- [x] Version increment on each sync
+- [x] Version display in debug output
+- [x] Version tracking in cache
+
+#### Sync Improvements
+- [x] Proper post → IPFS → manifest update order
+- [x] Deterministic ID to IPFS CID conversion during sync
+- [x] Skip manifest update when no changes
+- [x] `--wait` flag for IPNS propagation
+- [x] Verbose output improvements
+
+#### Cache Structure
+- [x] Protocol-specific cache directories (`cached/ipfs/follows/`)
+- [x] Last sync timestamp tracking
+- [x] Manifest version in cache
+- [x] IPNS name caching
+
+#### Documentation
+- [x] **IPFS Troubleshooting Guide** (`IPFS_troubleshooting.md`)
+- [x] Step-by-step IPFS setup instructions
+- [x] Common issues and solutions
+- [x] Debugging tools and commands
+- [x] Version management documentation in README
+
+#### Bug Fixes
+- [x] Fixed sync.py post ordering
+- [x] Fixed manifest version increment logic
+- [x] Fixed cache path inconsistencies
+- [x] Improved error messages for IPFS failures
+
+### 0.0.7 – Planned (Next)
 
 #### Feed Improvements
 - [ ] Thread indicators in feed (show participant count)
 - [ ] Auto-discovery of threads from followed users
 - [ ] Collapsible thread view in feed
 - [ ] Reaction aggregation (show counts instead of individual posts)
+- [ ] Better handling of deterministric IDs in feed
 
 #### Mentions & Discovery
 - [ ] `@username` mentions (link to profile)
 - [ ] Local mention notifications
 - [ ] Hashtag support (`#topic`)
 - [ ] Local search across cached posts
+- [ ] User discovery via shared follows
 
 #### Performance
 - [ ] Optimize thread cache structure
 - [ ] Lazy loading for large threads
 - [ ] Compress old thread caches
+- [ ] Parallel post fetching in sync-followed
 
 #### Quality of Life
 - [ ] Better repost preview (show original content)
 - [ ] Thread participation badge in feed
 - [ ] `filu-x post --thread` to continue thread without reply_to
 - [ ] Interactive thread view (expand/collapse)
+- [ ] Progress bar for long sync operations
+
+#### IPFS Enhancements
+- [ ] Automatic retry on IPFS failure
+- [ ] Better mock mode fallback
+- [ ] IPFS connection health checks
+- [ ] Multi-gateway support for resolution
 
 ## Beta Phase (0.1.x) – Next Milestone
 
@@ -116,23 +158,44 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
   - [ ] Post signature includes: `subkey_id` + `master_signature_on_subkey`
   - [ ] Verification checks: subkey authorization chain to master key
 
+### Täydellinen yksityisyys (P0) 🔐
+- [ ] **Kaikki postaukset aina salattuja**
+  - [ ] Salaus vastaanottajan/tekijän julkisella avaimella
+  - [ ] Julkiset postaukset = salattu omalla avaimella
+  - [ ] Yksityiset postaukset = salattu vastaanottajan avaimella
+  - [ ] Ryhmäpostaukset = salattu jokaisen ryhmäläisen avaimella
+- [ ] **Feedin salauksen purku**
+  - [ ] Feed yrittää purkaa jokaisen postauksen omalla avaimella
+  - [ ] Onnistuneet postaukset näytetään
+  - [ ] Epäonnistuneet ohitetaan hiljaisesti
+- [ ] **Plausible deniability**
+  - [ ] Ulkopuolinen ei näe edes postauksen olemassaoloa
+  - [ ] Kaikki postaukset näyttävät samalta
+- [ ] **Avaintenhallinta**
+  - [ ] Julkiset avaimet profiileissa
+  - [ ] Yksityiset avaimet turvassa (salasanalla suojattu)
+  - [ ] Ryhmäavaimet jaettu jäsenten kesken
+
 ### Network Features (P0)
 - [ ] Nostr relay integration for real-time notifications
 - [ ] RSS/Atom feed generation as HTTP fallback
 - [ ] Multi-gateway fallback (ipfs.io, cf-ipfs.com, dweb.link)
 - [ ] Full thread discovery (fetch all replies from participants)
+- [ ] Automatic gateway selection
 
 ### UX Improvements (P1)
 - [ ] Web UI prototype (static HTML client)
 - [ ] QR code generation for links
 - [ ] Mobile app prototype (Flutter)
 - [ ] Desktop notifications for mentions/replies
+- [ ] Configuration UI for IPFS settings
 
 ### Social Features (P1)
 - [ ] Private messaging (encrypted DMs)
 - [ ] Public groups/channels
 - [ ] Polls and surveys
 - [ ] Rich media previews
+- [ ] Event scheduling
 
 ## Stable Phase (1.0.0)
 
@@ -142,6 +205,7 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 - [ ] Spam filtering and moderation tools
 - [ ] Backup and restore utilities
 - [ ] Official mobile apps
+- [ ] Enterprise features (SSO, audit logs)
 
 ## Future Integrations (Post-1.0)
 
@@ -150,6 +214,7 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 - [ ] Dat/Hypercore protocol support
 - [ ] Blockchain anchoring for identity (optional)
 - [ ] AI-powered content recommendations (opt-in)
+- [ ] Decentralized search index
 
 ---
 
@@ -161,9 +226,7 @@ Tässä on päivitetty `TODO.md` versiolle 0.0.5 Alpha "Social Alpha":
 | 🚀 | Current version |
 | 🔄 | In progress |
 | ⏳ | Planned |
+| 🔐 | Privacy feature |
 | P0 | Critical priority |
 | P1 | High priority |
 | P2 | Nice to have |
-```
-
-

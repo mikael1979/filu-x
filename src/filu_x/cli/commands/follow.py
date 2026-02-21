@@ -1,4 +1,4 @@
-"""Follow command – add users to your follow list by fx:// link with collision detection"""
+"""Follow command – add users to your follow list by fx:// or ipns:// link with collision detection"""
 import sys
 import json
 from datetime import datetime, timezone
@@ -8,19 +8,26 @@ from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.resolver import LinkResolver, ResolutionError, SecurityError
 from filu_x.core.ipfs_client import IPFSClient
 from filu_x.core.crypto import sign_json
-from filu_x.core.id_generator import detect_display_name_collision, normalize_display_name  # NEW IMPORT
+from filu_x.core.id_generator import detect_display_name_collision, normalize_display_name
 
 @click.command()
 @click.pass_context
 @click.argument("target")
 @click.option("--alias", "-a", help="Custom display name for this user")
 @click.option("--force", is_flag=True, help="Skip signature verification (use with caution!)")
-def follow(ctx, target: str, alias: str = None, force: bool = False):
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed debug information")
+def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bool = False):
     """
-    Follow a user by fx:// profile link.
+    Follow a user by fx:// profile link or ipns:// profile link.
     
     Detects display name collisions (same @name, different pubkey) and warns user.
     Identity is cryptographic (pubkey), not social (display name).
+    
+    For best results, share the IPNS link (ipns://...) as it never changes.
+    
+    Examples:
+      filu-x follow fx://bafkreifcxj4fm3s...
+      filu-x follow ipns://k51qzi5uqu55d72d...
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
@@ -43,10 +50,10 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
         click.echo(click.style(f"❌ Error loading keys: {e}", fg="red"))
         sys.exit(1)
     
-    # 3. Check target is fx:// link
-    if not target.startswith("fx://"):
+    # 3. Check target is fx:// or ipns:// link
+    if not (target.startswith("fx://") or target.startswith("ipns://")):
         click.echo(click.style(
-            f"❌ Invalid target format. Expected fx:// link, got:\n"
+            f"❌ Invalid target format. Expected fx:// or ipns:// link, got:\n"
             f"   {target}",
             fg="red"
         ))
@@ -56,31 +63,60 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
     # 4. Initialize resolver and resolve profile
     ipfs = IPFSClient(mode="auto")
     resolver = LinkResolver(ipfs_client=ipfs)
+    if verbose:
+        resolver.set_verbose(True)
     
     try:
-        # Parse link
-        parsed = resolver.parse_fx_link(target)
-        cid = parsed["cid"]
+        # Parse link using parse_link method
+        parsed = resolver.parse_link(target)
+        protocol = parsed["protocol"]
+        identifier = parsed["identifier"]
         
-        # Resolve content
+        if verbose:
+            click.echo(click.style(f"   🔍 Protocol: {protocol}", fg="blue"))
+            click.echo(click.style(f"   🔍 Identifier: {identifier[:16]}...", fg="blue"))
+        
+        # Determine the resource string to pass to resolve_content
+        if protocol == "fx":
+            resource = identifier  # just the CID
+        else:  # ipns
+            resource = target      # full ipns:// URI
+        
         if not force:
             click.echo(click.style(f"🔍 Verifying profile signature...", fg="cyan"))
-            profile_data = resolver.resolve_content(cid, skip_cache=False)
             
-            # Verify this is a profile (not a post)
-            if "author" not in profile_data or "feed_cid" not in profile_data:
+            # Resolve content using the correct resource string
+            profile_data = resolver.resolve_content(resource, skip_cache=False)
+            
+            # Verify this is a profile (has required fields)
+            if "author" not in profile_data or "pubkey" not in profile_data:
                 click.echo(click.style(
-                    "⚠️  Warning: Target may not be a profile (missing 'author' or 'feed_cid' fields)",
+                    "⚠️  Warning: Target may not be a profile (missing 'author' or 'pubkey' fields)",
                     fg="yellow"
                 ))
                 if not click.confirm("Continue anyway?"):
                     sys.exit(1)
             
-            author = profile_data.get("author", cid[:12])
+            author = profile_data.get("author", identifier[:12])
             pubkey = profile_data.get("pubkey", "")
-            pubkey_preview = pubkey[:12] + "..."
+            pubkey_preview = pubkey[:12] + "..." if pubkey else "unknown"
             
-            # ✅ COLLISION DETECTION: Check if display name already followed with different pubkey
+            # ========== CRITICAL: Get IPNS names from profile ==========
+            profile_ipns = profile_data.get("profile_ipns", "")
+            manifest_ipns = profile_data.get("manifest_ipns", "")
+            
+            # Debug output to verify we got the IPNS names
+            if verbose or True:  # Always show this for now
+                if profile_ipns:
+                    click.echo(click.style(f"   ✅ Found Profile IPNS: {profile_ipns[:16]}...", fg="green"))
+                else:
+                    click.echo(click.style(f"   ⚠️  No Profile IPNS found in profile", fg="yellow"))
+                    
+                if manifest_ipns:
+                    click.echo(click.style(f"   ✅ Found Manifest IPNS: {manifest_ipns[:16]}...", fg="green"))
+            # ===========================================================
+            
+            # ✅ COLLISION DETECTION
             follow_list_path = layout.follow_list_path()
             existing_follows = []
             if follow_list_path.exists():
@@ -113,11 +149,14 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
                 f"✅ Verified profile: {author} (pubkey: {pubkey_preview})",
                 fg="green"
             ))
+            
         else:
             # Force mode: skip resolution
             profile_data = None
-            author = alias or cid[:12]
+            author = alias or identifier[:12]
             pubkey = "unknown"
+            profile_ipns = ""
+            manifest_ipns = ""
             click.echo(click.style(
                 "⚠️  Skipping verification (--force mode)",
                 fg="yellow"
@@ -147,7 +186,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
     else:
         follows = []
         follow_list = {
-            "version": "0.0.1",
+            "version": "0.0.6",
             "author": profile["author"],
             "pubkey": profile["pubkey"],
             "follows": follows,
@@ -163,19 +202,30 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
         ))
         sys.exit(0)
     
-    # Add new follow
+    # ========== Save follow entry with ALL identifiers ==========
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    follows.append({
+    
+    follow_entry = {
         "user": alias or author,
-        "profile_link": f"fx://{cid}",
-        "profile_cid": cid,
+        "profile_link": target,
+        "profile_cid": identifier if protocol == "fx" else "",
+        "profile_ipns": profile_ipns,
         "pubkey": pubkey,
+        "manifest_ipns": manifest_ipns,
         "discovered_via": "manual",
         "discovered_at": now,
         "last_sync": now,
         "trust_score": 1.0
-    })
+    }
     
+    # Debug: show what we're saving
+    if verbose or True:
+        click.echo(click.style("\n📝 Saving follow entry:", fg="cyan"))
+        click.echo(f"   • User: {follow_entry['user']}")
+        click.echo(f"   • Profile IPNS: {follow_entry['profile_ipns'][:16] if follow_entry['profile_ipns'] else 'None'}")
+        click.echo(f"   • Manifest IPNS: {follow_entry['manifest_ipns'][:16] if follow_entry['manifest_ipns'] else 'None'}")
+    
+    follows.append(follow_entry)
     follow_list["follows"] = follows
     follow_list["updated_at"] = now
     
@@ -185,10 +235,34 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
     # Save
     layout.save_json(follow_list_path, follow_list, private=False)
     
+    # ========== OPTIONAL: Cache profile immediately ==========
+    # KORJATTU: Käytä layout-metodia
+    if profile_data:
+        try:
+            cached_dir = layout.cached_user_dir(author, protocol="ipfs")
+            cached_dir.mkdir(parents=True, exist_ok=True)
+            
+            profile_path = cached_dir / "profile.json"
+            profile_path.write_text(json.dumps(profile_data, indent=2, ensure_ascii=False))
+            
+            if manifest_ipns:
+                ipns_path = cached_dir / "manifest_ipns.txt"
+                ipns_path.write_text(manifest_ipns)
+            
+            if profile_ipns:
+                profile_ipns_path = cached_dir / "profile_ipns.txt"
+                profile_ipns_path.write_text(profile_ipns)
+                
+            click.echo(click.style(f"   📦 Profile cached immediately", fg="green"))
+        except Exception as e:
+            if verbose:
+                click.echo(click.style(f"   ⚠️  Could not cache profile: {e}", fg="yellow"))
+    # =========================================================
+    
     # 6. Show result
     display_name = alias or author
     
-    # ✅ Show pubkey suffix if collision possible
+    # Show pubkey suffix if collision possible
     collision_suffix = ""
     if collision:
         collision_suffix = f" ({pubkey[:6]})"
@@ -199,16 +273,30 @@ def follow(ctx, target: str, alias: str = None, force: bool = False):
         fg="green",
         bold=True
     ))
-    click.echo(f"   Profile: fx://{cid}")
-    click.echo(f"   Pubkey: {pubkey[:12]}...")
+    click.echo(f"   Profile: {target}")
+    if pubkey:
+        click.echo(f"   Pubkey: {pubkey[:12]}...")
+    
+    if profile_ipns:
+        click.echo(f"   📌 Profile IPNS: {profile_ipns}")
+    if manifest_ipns:
+        click.echo(f"   📌 Manifest IPNS: {manifest_ipns[:16]}...")
+    
     click.echo(f"   Posts: will appear in feed after sync")
     
     # Suggest next steps
     click.echo()
-    click.echo(click.style(
-        "💡 Next steps:",
-        fg="blue"
-    ))
+    click.echo(click.style("💡 Next steps:", fg="blue"))
     click.echo("   • See your feed:        filu-x feed")
     click.echo("   • Sync for new posts:   filu-x sync")
-    click.echo("   • List follows:         cat ~/.local/share/filu-x/data/public/follow_list.json")
+    click.echo("   • Sync followed users:  filu-x sync-followed")
+    click.echo("   • List follows:         filu-x ls --follows")
+    
+    if profile_ipns:
+        click.echo()
+        click.echo(click.style(
+            "✅ This user has a Profile IPNS. For automatic updates,",
+            fg="green"
+        ))
+        click.echo("   the IPNS link is saved in your follow list.")
+        click.echo(f"   ipns://{profile_ipns}")

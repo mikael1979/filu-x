@@ -15,6 +15,7 @@ from .commands.ls import ls
 from .commands.rm import rm
 from .commands.repost import repost
 from .commands.thread import thread
+from .commands.fetch import fetch
 
 @click.group()
 @click.version_option(version="0.0.4", prog_name="filu-x")
@@ -52,6 +53,7 @@ cli.add_command(ls)
 cli.add_command(rm)
 cli.add_command(repost)
 cli.add_command(thread)
+cli.add_command(fetch)
 
 if __name__ == "__main__":
     cli()

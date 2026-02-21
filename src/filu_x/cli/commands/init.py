@@ -1,7 +1,8 @@
-"""Initialize a new Filu-X user"""
+"""Initialize a new Filu-X user with IPNS support (no manifest_cid)"""
 import sys
 import getpass
 from pathlib import Path
+from datetime import datetime, timezone
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 import click
@@ -9,6 +10,8 @@ import click
 from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.crypto import sign_json
 from filu_x.core.templates import TemplateEngine
+from filu_x.core.ipfs_client import IPFSClient
+from filu_x.core.ipns import IPNSManager
 
 @click.command()
 @click.pass_context
@@ -18,14 +21,10 @@ def init(ctx, username: str, no_password: bool):
     """
     Initialize a new Filu-X user.
     
-    Creates Ed25519 keypair and file structure in the specified data directory.
-    
-    Examples:
-      filu-x init alice --no-password
-      filu-x --data-dir ./test_data/alice init alice --no-password
-      FILU_X_DATA_DIR=./test_data/bob filu-x init bob --no-password
+    Creates Ed25519 keypair, IPNS names for both profile and manifest,
+    and the complete file structure. Profile contains only IPNS names,
+    no direct CIDs - this ensures followers always get the latest content.
     """
-    # Get data directory from context (set by CLI global option)
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
     
@@ -78,28 +77,33 @@ def init(ctx, username: str, no_password: bool):
         with open(layout.private_key_path(), "wb") as f:
             f.write(priv_key_bytes)
     
+    # ========== CREATE IPNS NAMES ==========
+    ipns = IPNSManager(use_mock=True)  # Alpha uses mock mode
+    ipfs_client = IPFSClient(mode="auto")
+    
+    try:
+        # Create IPNS name for profile (this one followers will use)
+        profile_ipns = ipns.create_name(priv_key_bytes) + "p"
+        click.echo(click.style(f"   📌 Profile IPNS created: {profile_ipns[:16]}...", fg="blue"))
+        
+        # Create IPNS name for manifest (different from profile)
+        manifest_ipns = ipns.create_name(priv_key_bytes) + "m"
+        click.echo(click.style(f"   📌 Manifest IPNS created: {manifest_ipns[:16]}...", fg="blue"))
+        
+    except Exception as e:
+        click.echo(click.style(f"⚠️  Could not create IPNS names: {e}", fg="yellow"))
+        profile_ipns = ""
+        manifest_ipns = ""
+    # ========================================
+    
     # Create templates
     engine = TemplateEngine()
-    now = "2026-02-14T00:00:00Z"  # TODO: datetime.now().isoformat()
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
-    # Profile (without signature first – sign then)
-    profile = engine.render_profile({
-        "version": "0.0.1",
-        "username": username,
-        "pubkey": pub_key_bytes.hex(),
-        "now_iso8601": now,
-        "signature": ""
-    })
-    
-    # Sign profile
-    profile["signature"] = sign_json(profile, priv_key_bytes)
-    
-    # Save
-    layout.save_json(layout.profile_path(), profile, private=False)
-    
-    # Manifest
+    # Create empty manifest first with version 1
     manifest = engine.render_manifest({
-        "version": "0.0.1",
+        "version": "0.0.6",
+        "manifest_version": 1,  # Aloitetaan versiosta 1
         "username": username,
         "pubkey": pub_key_bytes.hex(),
         "now_iso8601": now,
@@ -108,21 +112,49 @@ def init(ctx, username: str, no_password: bool):
     manifest["signature"] = sign_json(manifest, priv_key_bytes)
     layout.save_json(layout.manifest_path(), manifest, private=False)
     
-    # Private config – WITH NEW TEMPLATE VARIABLES
+    # Create profile with ONLY IPNS names (no manifest_cid!)
+    profile = engine.render_profile({
+        "version": "0.0.6",
+        "username": username,
+        "pubkey": pub_key_bytes.hex(),
+        "now_iso8601": now,
+        "profile_ipns": profile_ipns,
+        "manifest_ipns": manifest_ipns,
+        "signature": ""
+    })
+    profile["signature"] = sign_json(profile, priv_key_bytes)
+    layout.save_json(layout.profile_path(), profile, private=False)
+    
+    # Add profile to IPFS to get its CID (for sharing)
+    profile_cid = ipfs_client.add_file(layout.profile_path())
+    click.echo(click.style(f"   📦 Profile CID: {profile_cid[:16]}...", fg="blue"))
+    
+    # ========== PUBLISH TO IPNS ==========
+    # Publish profile to its IPNS name
+    if profile_ipns:
+        ipns.publish(layout.profile_path(), profile_ipns)
+        
+    # Publish manifest to its IPNS name
+    if manifest_ipns:
+        ipns.publish(layout.manifest_path(), manifest_ipns)
+    # ======================================
+    
+    # Private config
     private_config = engine.render_private_config({
-        "version": "0.0.1",
+        "version": "0.0.6",
         "username": username,
         "pubkey": pub_key_bytes.hex(),
         "encrypted": bool(password),
-        "last_used_data_dir": str(layout.base_path),  # ✅ UUSI: tallenna nykyinen hakemisto
-        "default_profile_link": "",                    # ✅ UUSI: tyhjä aluksi
-        "recent_links": []                             # ✅ UUSI: tyhjä lista
+        "last_used_data_dir": str(layout.base_path),
+        "default_profile_link": f"fx://{profile_cid}",
+        "default_profile_ipns": f"ipns://{profile_ipns}" if profile_ipns else "",
+        "recent_links": []
     })
     layout.save_json(layout.private_config_path(), private_config, private=True)
     
     # Empty follow list
     follow_list = engine.render_follow_list({
-        "version": "0.0.1",
+        "version": "0.0.6",
         "username": username,
         "pubkey": pub_key_bytes.hex(),
         "now_iso8601": now,
@@ -132,9 +164,24 @@ def init(ctx, username: str, no_password: bool):
     layout.save_json(layout.follow_list_path(), follow_list, private=False)
     
     # Show success message
-    click.echo(click.style(f"✅ Filu-X initialized for user @{username}", fg="green"))
-    click.echo(f"   Profile: {layout.profile_path()}")
-    click.echo(f"   Public files: {layout.public_dir}")
-    click.echo(f"   Private files: {layout.private_dir}")
+    click.echo(click.style(f"✅ Filu-X initialized for user @{username}", fg="green", bold=True))
+    click.echo()
+    click.echo(f"   Profile CID: {profile_cid}")
+    click.echo(f"   Profile IPNS: {profile_ipns}" if profile_ipns else "   Profile IPNS: not available")
+    click.echo(f"   Manifest IPNS: {manifest_ipns}" if manifest_ipns else "   Manifest IPNS: not available")
+    click.echo(f"   Manifest version: 1")
+    click.echo(f"   Data directory: {layout.base_path}")
+    click.echo()
+    click.echo("📋 Your profile links (share these):")
+    click.echo(f"   • fx://{profile_cid}  (direct CID - changes if profile updates)")
+    if profile_ipns:
+        click.echo(f"   • ipns://{profile_ipns}  (IPNS - never changes!)")
+    click.echo()
+    click.echo("📋 Your manifest IPNS (for followers to get latest posts):")
+    if manifest_ipns:
+        click.echo(f"   • ipns://{manifest_ipns}  (always points to latest manifest)")
+    click.echo()
+    click.echo("💡 For followers to always see your updates, share the Profile IPNS link!")
+    click.echo("   They will get your profile once, and then follow manifest IPNS automatically.")
     click.echo()
     click.echo("Next step: filu-x post 'Hello world!'")

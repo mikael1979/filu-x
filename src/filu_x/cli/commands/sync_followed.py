@@ -1,46 +1,40 @@
-"""Sync followed users' latest posts into local cache"""
+"""Sync followed users' latest posts via IPNS (no manifest_cid)"""
 import sys
 import json
 from pathlib import Path
+from datetime import datetime, timezone
+import time
 import click
 
 from filu_x.storage.layout import FiluXStorageLayout
-from filu_x.core.resolver import LinkResolver, ResolutionError
+from filu_x.core.resolver import LinkResolver, ResolutionError, SecurityError
 from filu_x.core.ipfs_client import IPFSClient
 
 @click.command()
 @click.pass_context
 @click.option("--limit", "-l", default=10, help="Max posts per followed user")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed sync progress")
-def sync_followed(ctx, limit: int, verbose: bool):
+@click.option("--allow-unverified", is_flag=True, help="Accept manifests without signature verification")
+@click.option("--wait", "-w", default=0, help="Wait N seconds after sync (for IPNS propagation)")
+def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: int):
     """
-    Sync latest posts from followed users into local cache.
+    Sync latest posts from followed users via IPNS.
     
-    Fetches profile manifests from IPFS, resolves new posts,
-    and stores them in ~/.local/share/filu-x/data/cached/follows/
+    Fetches profiles once, then uses manifest IPNS to always get the latest manifest.
+    Profile does not need to be updated - IPNS handles content updates.
     
-    Example:
-      filu-x sync-followed --limit 5
+    Use --wait to add a delay after sync (for IPNS propagation in real network).
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
     
-    # Verify user is initialized
     if not layout.profile_path().exists():
-        click.echo(click.style(
-            "❌ User not initialized. Run: filu-x init <username>",
-            fg="red"
-        ))
+        click.echo(click.style("❌ User not initialized. Run: filu-x init <username>", fg="red"))
         sys.exit(1)
     
-    # Load follow list
     follow_list_path = layout.follow_list_path()
     if not follow_list_path.exists():
-        click.echo(click.style(
-            "📭 No followed users. Follow someone first:\n"
-            "   filu-x follow fx://bafkrei...",
-            fg="yellow"
-        ))
+        click.echo(click.style("📭 No followed users. Follow someone first.", fg="yellow"))
         sys.exit(0)
     
     follow_list = layout.load_json(follow_list_path)
@@ -50,129 +44,281 @@ def sync_followed(ctx, limit: int, verbose: bool):
         click.echo(click.style("📭 No followed users", fg="yellow"))
         sys.exit(0)
     
-    # Initialize resolver
     ipfs = IPFSClient(mode="auto")
     resolver = LinkResolver(ipfs_client=ipfs)
+    if verbose:
+        resolver.set_verbose(True)
     
-    # Sync each followed user
     total_new = 0
     errors = []
+    verified_ok = 0
+    ipns_resolved = 0
     
-    click.echo(click.style(
-        f"🔄 Syncing {len(follows)} followed users...",
-        fg="cyan",
-        bold=True
-    ))
+    click.echo(click.style(f"🔄 Syncing {len(follows)} followed users via IPNS...", fg="cyan", bold=True))
     
     for follow in follows:
-        user = follow.get("user", follow.get("profile_cid", "unknown"))
-        profile_link = follow.get("profile_link", "")
-        cid = follow.get("profile_cid", "")
+        user = follow.get("user", "unknown")
+        expected_pubkey = follow.get("pubkey")
         
         if verbose:
             click.echo(f"\n👤 Syncing {user}...")
         
         try:
-            # Resolve profile if CID missing or invalid
-            if not cid.startswith("bafk") and not cid.startswith("Qm"):
-                parsed = resolver.parse_fx_link(profile_link)
-                cid = parsed["cid"]
+            # ========== DETERMINE PROFILE IDENTIFIER ==========
+            profile_ipns = follow.get("profile_ipns")
+            profile_cid = follow.get("profile_cid")
+            profile_identifier = None
+            identifier_type = None
             
-            profile_data = resolver.resolve_content(cid, skip_cache=False)
-            
-            # Get manifest CID from profile
-            manifest_cid = profile_data.get("feed_cid")
-            if not manifest_cid:
+            if profile_cid:
+                profile_identifier = profile_cid
+                identifier_type = "Profile CID"
                 if verbose:
-                    click.echo(f"   ⚠️  No manifest CID in profile")
+                    click.echo(f"   🔍 Using Profile CID: {profile_identifier[:16]}...")
+            elif profile_ipns:
+                profile_identifier = f"ipns://{profile_ipns}"
+                identifier_type = "Profile IPNS"
+                if verbose:
+                    click.echo(f"   🔍 Using Profile IPNS: {profile_ipns[:16]}...")
+            elif follow.get("profile_link"):
+                parsed = resolver.parse_link(follow["profile_link"])
+                profile_identifier = parsed["identifier"]
+                identifier_type = f"Parsed {parsed['protocol']}"
+            else:
+                raise ResolutionError(f"No valid profile identifier for {user}")
+            
+            # ========== FETCH FRESH PROFILE ==========
+            if verbose:
+                click.echo(f"   📥 Fetching fresh profile using {identifier_type}...")
+            
+            profile_data = resolver.resolve_content(profile_identifier, skip_cache=True)
+            
+            # Verify pubkey
+            profile_pubkey = profile_data.get("pubkey")
+            if expected_pubkey and profile_pubkey != expected_pubkey:
+                click.echo(click.style(f"   ⚠️  Pubkey mismatch!", fg="yellow"))
+                if not click.confirm("Continue?"):
+                    continue
+            
+            # ========== GET MANIFEST VIA IPNS ==========
+            manifest_ipns = profile_data.get("manifest_ipns")
+            if not manifest_ipns:
+                click.echo(click.style(f"   ❌ No manifest_ipns in profile", fg="red"))
                 continue
             
-            # Resolve manifest
-            manifest = resolver.resolve_content(manifest_cid, skip_cache=False)
-            posts = [e for e in manifest.get("entries", []) if e.get("type") == "post"]
+            if verbose:
+                click.echo(f"   🔍 Resolving Manifest IPNS: {manifest_ipns[:16]}...")
             
-            # Reverse to get newest first
-            posts.reverse()
+            # Resolve IPNS to get the latest manifest CID
+            try:
+                # If wait > 0, this is the first attempt
+                manifest_data = resolver.resolve_content(
+                    f"ipns://{manifest_ipns}",
+                    skip_cache=True,  # Always get the latest!
+                    expected_pubkey=profile_pubkey if not allow_unverified else None
+                )
+                ipns_resolved += 1
+                if verbose:
+                    click.echo(f"   ✅ Manifest fetched via IPNS")
+                    
+            except (ResolutionError, SecurityError) as e:
+                if wait > 0:
+                    if verbose:
+                        click.echo(f"   ⚠️  IPNS resolution failed: {e}")
+                        click.echo(f"   ⏳ Waiting {wait} seconds for IPNS propagation...")
+                    time.sleep(wait)
+                    
+                    # Try again after waiting
+                    try:
+                        manifest_data = resolver.resolve_content(
+                            f"ipns://{manifest_ipns}",
+                            skip_cache=True,
+                            expected_pubkey=profile_pubkey if not allow_unverified else None
+                        )
+                        ipns_resolved += 1
+                        if verbose:
+                            click.echo(f"   ✅ Manifest fetched via IPNS after waiting")
+                    except Exception as e2:
+                        click.echo(click.style(f"   ❌ Still failed after waiting: {e2}", fg="red"))
+                        continue
+                else:
+                    click.echo(click.style(f"   ❌ Failed to resolve manifest IPNS: {e}", fg="red"))
+                    continue
             
-            # Save to cached directory
-            cached_dir = layout.base_path / "data" / "cached" / "follows" / user.replace("@", "").replace(" ", "_")
+            verified_ok += 1
+            current_author = profile_data.get("author", user)
+            
+            # ========== CACHE MANIFEST ==========
+            cached_dir = layout.cached_user_dir(current_author, protocol="ipfs")
             cached_dir.mkdir(parents=True, exist_ok=True)
             
-            # Save profile and manifest
-            (cached_dir / "profile.json").write_text(json.dumps(profile_data, indent=2, ensure_ascii=False))
-            (cached_dir / "Filu-X.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+            manifest_path = cached_dir / "Filu-X.json"
+            manifest_path.write_text(json.dumps(manifest_data, indent=2, ensure_ascii=False))
             
-            # Save posts (max limit)
+            # Save profile
+            profile_path = cached_dir / "profile.json"
+            profile_path.write_text(json.dumps(profile_data, indent=2, ensure_ascii=False))
+            
+            # Save IPNS info
+            ipns_path = cached_dir / "manifest_ipns.txt"
+            ipns_path.write_text(manifest_ipns)
+            
+            if profile_ipns:
+                profile_ipns_path = cached_dir / "profile_ipns.txt"
+                profile_ipns_path.write_text(profile_ipns)
+            
+            # Save last sync time
+            last_sync_path = cached_dir / "last_sync.txt"
+            last_sync_path.write_text(datetime.now(timezone.utc).isoformat())
+            
+            # ========== PROCESS POSTS ==========
+            posts = [e for e in manifest_data.get("entries", []) 
+                    if e.get("type") in ["post", "repost", "vote", "reaction", "rating"]]
+            
+            manifest_version = manifest_data.get("manifest_version", "0.0.0.0")
+            
+            if verbose:
+                click.echo(f"   📊 Manifest version: {manifest_version}, posts in manifest: {len(posts)}")
+            
+            posts.reverse()  # Newest first
+            
             new_count = 0
+            posts_dir = cached_dir / "posts"
+            posts_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Get list of already cached posts
+            cached_posts = set()
+            if posts_dir.exists():
+                for f in posts_dir.glob("*.json"):
+                    cached_posts.add(f.stem)
+            
+            if verbose:
+                click.echo(f"   📦 Already cached: {len(cached_posts)} posts")
+            
             for post_entry in posts[:limit]:
                 post_cid = post_entry.get("cid")
                 if not post_cid:
                     continue
                 
-                # ✅ SKIP non-CID values (post IDs like "20260214_...")
-                # Real CIDs always start with "bafk" (CIDv1) or "Qm" (CIDv0)
-                if not (post_cid.startswith("bafk") or post_cid.startswith("Qm")):
+                # Detect format: IPFS CID or deterministic ID
+                is_ipfs_cid = post_cid.startswith("bafk") or post_cid.startswith("Qm")
+                is_deterministic = len(post_cid) == 32 and all(c in '0123456789abcdef' for c in post_cid.lower())
+                
+                if verbose:
+                    if is_ipfs_cid:
+                        click.echo(f"   🔍 Found IPFS CID: {post_cid[:16]}...")
+                    elif is_deterministic:
+                        click.echo(f"   🔍 Found deterministic ID: {post_cid[:16]}...")
+                    else:
+                        click.echo(f"   ⚠️  Unknown format: {post_cid[:16]}...")
+                        continue
+                
+                # Skip unknown formats
+                if not (is_ipfs_cid or is_deterministic):
+                    continue
+                
+                # Check if already cached
+                if post_cid in cached_posts:
                     if verbose:
-                        preview = post_cid[:30] + "..." if len(post_cid) > 30 else post_cid
-                        click.echo(f"   ⚠️  Skipping non-CID entry: {preview}")
+                        click.echo(f"   ℹ️  Already cached: {post_cid[:16]}...")
                     continue
                 
-                # Skip if already cached
-                post_path = cached_dir / "posts" / f"{post_cid}.json"
-                post_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                if post_path.exists():
-                    continue
-                
-                # Resolve and save post
-                try:
-                    post_content = resolver.resolve_content(post_cid, skip_cache=False)
-                    post_path.write_text(json.dumps(post_content, indent=2, ensure_ascii=False))
-                    new_count += 1
-                    total_new += 1
+                # For deterministic IDs, we need to check if they're in IPFS
+                if is_deterministic:
+                    if verbose:
+                        click.echo(f"   ⚠️  Deterministic ID - trying to find in IPFS...")
                     
-                    if verbose:
-                        content_preview = post_content.get("content", "")[:40]
-                        preview = content_preview + "..." if len(content_preview) > 40 else content_preview
-                        click.echo(f"   ✅ Cached: {preview}")
-                except ResolutionError as e:
-                    if verbose:
-                        click.echo(f"   ⚠️  Failed to resolve {post_cid[:12]}: {e}")
-                    continue
-                except Exception as e:
-                    if verbose:
-                        click.echo(f"   ⚠️  Error caching {post_cid[:12]}: {e}")
-                    continue
+                    # Try to resolve as if it were an IPFS CID (might work if synced)
+                    try:
+                        post_content = resolver.resolve_content(post_cid, skip_cache=False)
+                        post_path = posts_dir / f"{post_cid}.json"
+                        post_path.write_text(json.dumps(post_content, indent=2, ensure_ascii=False))
+                        new_count += 1
+                        total_new += 1
+                        cached_posts.add(post_cid)
+                        
+                        if verbose:
+                            preview = post_content.get("content", "")[:40]
+                            if preview:
+                                preview += "..."
+                            click.echo(f"   ✅ Cached: {preview}")
+                    except Exception as e:
+                        if verbose:
+                            click.echo(f"   ⚠️  Not in IPFS: {e}")
+                        # This is expected - deterministic IDs need sync first
+                        continue
+                
+                # For IPFS CIDs, resolve normally
+                else:
+                    try:
+                        post_content = resolver.resolve_content(post_cid, skip_cache=False)
+                        post_path = posts_dir / f"{post_cid}.json"
+                        post_path.write_text(json.dumps(post_content, indent=2, ensure_ascii=False))
+                        new_count += 1
+                        total_new += 1
+                        cached_posts.add(post_cid)
+                        
+                        if verbose:
+                            preview = post_content.get("content", "")[:40]
+                            if preview:
+                                preview += "..."
+                            click.echo(f"   ✅ Cached: {preview}")
+                            
+                    except Exception as e:
+                        if verbose:
+                            click.echo(f"   ⚠️  Failed to fetch: {e}")
             
-            if verbose and new_count == 0:
-                click.echo(f"   ℹ️  No new posts")
-        
-        except ResolutionError as e:
-            errors.append((user, f"Resolution failed: {e}"))
+            # Update follow list
+            follow["last_sync"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            follow["last_manifest_version"] = manifest_version
+            follow["last_manifest_cid"] = manifest_data.get("_resolved_cid", "")
+            
             if verbose:
-                click.echo(f"   ❌ {e}")
+                if new_count == 0:
+                    if len(posts) > 0:
+                        click.echo(f"   ℹ️  No new posts (already have {len(cached_posts)}/{len(posts)})")
+                    else:
+                        click.echo(f"   ℹ️  No posts in manifest")
+                else:
+                    click.echo(f"   ✅ Synced {new_count} new posts (total {len(cached_posts)}/{len(posts)})")
+        
         except Exception as e:
             errors.append((user, str(e)))
             if verbose:
                 click.echo(f"   ❌ {e}")
     
-    # Show summary
+    # Update follow list
+    follow_list["follows"] = follows
+    follow_list["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    
+    try:
+        with open(layout.private_key_path(), "rb") as f:
+            privkey_bytes = f.read()
+        from filu_x.core.crypto import sign_json
+        follow_list["signature"] = sign_json(follow_list, privkey_bytes)
+        layout.save_json(follow_list_path, follow_list, private=False)
+    except Exception as e:
+        if verbose:
+            click.echo(click.style(f"⚠️  Could not update follow list: {e}", fg="yellow"))
+    
+    # Summary
     click.echo()
-    click.echo(click.style(
-        f"📊 Sync completed",
-        fg="green",
-        bold=True
-    ))
+    click.echo(click.style(f"📊 Sync completed", fg="green", bold=True))
     click.echo(f"   New posts cached: {total_new}")
     click.echo(f"   Followed users: {len(follows)}")
+    click.echo(f"   Manifests verified: {verified_ok}")
+    if ipns_resolved > 0:
+        click.echo(f"   IPNS resolutions: {ipns_resolved}")
     
     if errors:
         click.echo(click.style(f"\n⚠️  Errors ({len(errors)}):", fg="yellow"))
         for user, err in errors[:3]:
             click.echo(f"   • {user}: {err}")
-        if len(errors) > 3:
-            click.echo(f"   ... and {len(errors) - 3} more")
     
     click.echo()
     click.echo(click.style("💡 View your unified feed:", fg="blue"))
     click.echo("   filu-x feed")
+    
+    if wait > 0:
+        click.echo()
+        click.echo(click.style(f"⏳ Note: Used --wait {wait} seconds for IPNS propagation", fg="cyan"))

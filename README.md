@@ -1,23 +1,21 @@
-Tässä on päivitetty `README.md` versiolle 0.0.5 Alpha "Social Alpha":
-
-```markdown
 # Filu-X
 
 > Files as social media. Own your data. Verify everything.  
 > **Unix philosophy: Everything is a file.**
 
-[![Alpha](https://img.shields.io/badge/version-0.0.5-alpha?color=orange)](https://github.com/mikael1979/filu-x/releases)
+[![Alpha](https://img.shields.io/badge/version-0.0.6-alpha?color=orange)](https://github.com/mikael1979/filu-x/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://python.org)
 
 Filu-X is a file-based approach to decentralized social media following Unix philosophy: **everything is a file**. Every post is a cryptographically signed JSON file stored on your device. Your identity is your Ed25519 public key – display names are just metadata that can collide without compromising security.
 
 - ✅ **Everything is a file** – Posts, profiles, follows, reactions, reposts = plain JSON files
-- ✅ **Your files, your rules** – Data lives in `~/.local/share/filu-x/`, never on a server
+- ✅ **Your files, your rules** – Data lives in `./data/` directory, never on a server
 - ✅ **Cryptographic identity** – You are your pubkey; `@alice` is just a nickname
 - ✅ **Thread-aware conversations** – Participant lists solve the "blind spot" problem
 - ✅ **Rich interactions** – Upvotes, emoji reactions, ratings, and reposts
 - ✅ **Deterministic addressing** – Post IDs are SHA256(pubkey + timestamp + content)
+- ✅ **Version management** – Each manifest has `major.minor.patch.build` version
 - ✅ **Content addressing** – Share via immutable links (`fx://bafkrei...`)
 - ✅ **Protocol-agnostic** – Works with IPFS today, extensible tomorrow
 - ✅ **No algorithms** – Your feed is chronological, not engagement-optimized
@@ -43,7 +41,7 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 │                         └─────────────────────────────┘
 │                                         │
 │  Feed generation is always:             │
-│  1. List ~/.local/share/filu-x/...      │
+│  1. List ./data/public/ipfs/posts/      │
 │  2. Parse JSON files                    │
 │  3. Validate signatures                 │
 │  4. Display chronologically             │
@@ -67,7 +65,7 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 **Feed code never changes:**
 ```python
 # feed.py - completely protocol-agnostic
-for post_path in layout.posts_dir.glob("*.json"):
+for post_path in layout.public_ipfs_dir.glob("posts/*.json"):
     post = layout.load_json(post_path)  # ← Doesn't care where it came from!
     verify_signature(post)              # ← Always Ed25519
     display(post)                       # ← Always same format
@@ -80,15 +78,15 @@ for post_path in layout.posts_dir.glob("*.json"):
 ```
 Bob's feed (3 posts from different sources):
 
-[2026-02-20 10:00] @alice 💬
+[2026-02-21 10:00] @alice 💬
   "Alice's post"
   fx://bafkreialice...  ← Fetched from IPFS
 
-[2026-02-20 09:30] @charlie 👍
+[2026-02-21 09:30] @charlie 👍
   upvote: Great post!
   fx://bafkreicharlie... ← Fetched from Nostr
 
-[2026-02-20 09:00] @bob 📝
+[2026-02-21 09:00] @bob 📝
   "Bob's own post"
   fx://cdd5d834ce...    ← Own post
 
@@ -149,7 +147,7 @@ filu-x post "!(upvote): Great point!" --reply-to bafkrei...
 # Repost with comment
 filu-x repost fx://bafkrei... --comment "Check this out!"
 
-# Sync to IPFS (or mock storage if daemon unavailable)
+# Sync to IPFS (with verbose output)
 filu-x sync -v
 
 # Get your shareable link
@@ -168,18 +166,21 @@ filu-x thread show bafkrei...
 # Follow a thread
 filu-x thread follow bafkrei...
 
-# Sync followed users' posts
-filu-x sync-followed
+# Sync followed users' posts (with IPNS propagation wait)
+filu-x sync-followed -v --wait 60
 
 # View your unified feed
 filu-x feed
+
+# Check manifest version
+cat ./data/public/ipfs/Filu-X.json | jq '.manifest_version'
 ```
 
 💡 `--no-password` stores keys unencrypted – for alpha testing only. Beta will require password-encrypted keys.
 
 ---
 
-## 📱 Social Features (Alpha 0.0.5)
+## 📱 Social Features (Alpha 0.0.6)
 
 ### Threads & Conversations
 Filu-X solves the "blind spot" problem in decentralized networks using **participant lists**. Every post knows who is in the conversation, so you can follow threads even if you don't follow everyone.
@@ -231,6 +232,27 @@ filu-x repost fx://bafkrei... --comment "Check this out!"
 
 ---
 
+## 📊 Version Management
+
+Every manifest has a version number in format `major.minor.patch.build`:
+
+- **build**: Increments on every change (0-9999)
+- **patch**: Increments when build reaches 9999
+- **minor**: Increments when patch reaches 9999  
+- **major**: Increments when minor reaches 9999
+
+This allows for up to 10^16 versions – practically unlimited!
+
+```bash
+# Check your manifest version
+cat ./data/public/ipfs/Filu-X.json | jq '.manifest_version'
+
+# Versions increase automatically on sync
+filu-x sync -v  # 0.0.0.1 → 0.0.0.2
+```
+
+---
+
 ## 🔒 Security Model: Cryptographic Identity
 
 Filu-X treats security as non-negotiable. Your identity is your Ed25519 public key – display names are purely cosmetic and can collide without security implications.
@@ -247,13 +269,13 @@ When display names collide, Filu-X shows the pubkey suffix:
 ```
 📬 Feed (3 posts)
 
-[2026-02-20 10:00] @alice (50ad55) 💬
+[2026-02-21 10:00] @alice (50ad55) 💬
   Alice's first post
   
-[2026-02-20 10:05] @alice (c4ba70) 👍  ← Bob (different pubkey!)
+[2026-02-21 10:05] @alice (c4ba70) 👍  ← Bob (different pubkey!)
   upvote: Great post!
   
-[2026-02-20 10:10] @alice (e90b3c) 🔁  ← Charlie (yet another!)
+[2026-02-21 10:10] @alice (e90b3c) 🔁  ← Charlie (yet another!)
   Repost: "Alice's first post"
 
 ⚠️  Display name collisions in feed: 'alice' used by 3 pubkeys
@@ -285,47 +307,57 @@ When display names collide, Filu-X shows the pubkey suffix:
 
 ---
 
-## 📁 Unix Philosophy: Everything is a File
+## 📁 Data Directory
 
-Filu-X embraces the Unix philosophy where everything is a file. No databases, no proprietary formats – just plain JSON files you can read, edit, and backup with standard tools.
+Filu-X stores all data in `./data/` directory with protocol-specific organization:
 
 ```
-~/.local/share/filu-x/
-└── data/
-    ├── user_private/          # 🔒 NEVER share this
-    │   ├── keys/
-    │   │   ├── ed25519_private.pem   # Your secret key
-    │   │   └── ed25519_public.pem    # Your public key
-    │   ├── private_config.json       # Local settings
-    │   └── thread_config.json        # Followed threads
-    │
-    ├── public/                # 🌐 Safe to publish anywhere
-    │   ├── profile.json       # Your public identity
-    │   ├── Filu-X.json        # Manifest of publishable files
-    │   ├── follow_list.json   # Who you follow
-    │   └── posts/
-    │       ├── 2ffe1a58...json  # Regular post
-    │       ├── 6bc748ec...json  # Upvote
-    │       └── d428f20a...json  # Reaction
-    │
-    └── cached/                # 📦 Cached content from network
-        ├── follows/            # Followed users' posts
-        └── threads/            # Cached conversation threads
+data/
+├── public/                          # 🌐 Published content
+│   ├── ipfs/                        # 📡 IPFS protocol
+│   │   ├── profile.json              # Your public identity
+│   │   ├── Filu-X.json                # Manifest (with version)
+│   │   ├── follow_list.json           # Who you follow
+│   │   └── posts/                     # Your posts
+│   │       └── *.json
+│   │
+│   └── usb/                          # 💾 USB/Sneakernet protocol
+│       ├── profile.json
+│       ├── Filu-X.json
+│       ├── follow_list.json
+│       └── posts/
+│           └── *.json
+│
+├── cached/                           # 📦 Downloaded content
+│   └── ipfs/                         # From IPFS network
+│       └── follows/
+│           ├── alice/                 # Alice's cached data
+│           │   ├── profile.json
+│           │   ├── Filu-X.json
+│           │   ├── last_sync.txt
+│           │   └── posts/
+│           │       └── *.json
+│           └── bob/                   # Bob's cached data
+│               └── ...
+│
+└── user_private/                      # 🔒 NEVER SHARE THIS
+    ├── keys/
+    │   ├── ed25519_private.pem        # Your secret key
+    │   └── ed25519_public.pem         # Your public key
+    └── private_config.json             # Local settings
 ```
 
 ### Data Flow (File-Based)
 1. **Create** → Write JSON file → Sign with Ed25519
-2. **Sync** → Add file to IPFS → Get CID → Update manifest
-3. **Share** → Send `fx://bafkrei...` link
+2. **Sync** → Add file to IPFS → Get CID → Update manifest → Increment version
+3. **Share** → Send `fx://bafkrei...` link or `ipns://...` link
 4. **Resolve** → Fetch CID → Verify signature → Display content
 5. **Interact** → Reply, react, repost = new JSON files
 6. **Discover** → Threads via participant lists
 
-Key insight: **Commands manipulate files** – not a database. `cat ~/.local/share/filu-x/data/public/posts/*.json` works just like any other file.
-
 ---
 
-## ⚙️ Commands (Alpha 0.0.5)
+## ⚙️ Commands (Alpha 0.0.6)
 
 | Command                          | Description                                |
 | -------------------------------- | ------------------------------------------ |
@@ -337,16 +369,19 @@ Key insight: **Commands manipulate files** – not a database. `cat ~/.local/sha
 | `filu-x thread follow <cid>`     | Follow a thread for updates                |
 | `filu-x thread list`             | List followed threads                      |
 | `filu-x thread sync-all`         | Sync all followed threads                   |
-| `filu-x sync`                    | Sync files to IPFS (real or mock)          |
+| `filu-x sync`                    | Sync files to IPFS                         |
+| `filu-x sync -v`                 | Sync with verbose output                    |
 | `filu-x sync-followed`           | Fetch posts from followed users            |
+| `filu-x sync-followed --wait 60` | Wait for IPNS propagation                   |
 | `filu-x link`                    | Generate shareable `fx://bafkrei...` link  |
 | `filu-x link --profile`          | Get profile link                           |
 | `filu-x resolve <link>`          | Fetch and cryptographically verify content |
+| `filu-x resolve --verbose <cid>` | Resolve with detailed info                  |
 | `filu-x follow <link>`           | Follow a user (detects name collisions)    |
-| `filu-x feed`                    | Show unified feed (own + followed + threads) |
-| `filu-x ls`                      | List local files (offline management)      |
-| `filu-x rm <post-id>`             | Delete a post                              |
-| `filu-x rm --cache`               | Clear cached content                       |
+| `filu-x feed`                    | Show unified feed                          |
+| `filu-x ls`                      | List local files                           |
+| `filu-x rm <post-id>`            | Delete a post                              |
+| `filu-x rm --cache`              | Clear cached content                       |
 | `filu-x --data-dir <path>`       | Use custom data directory                  |
 
 ---
@@ -368,6 +403,33 @@ FILU_X_DATA_DIR=./test_data/charlie filu-x init charlie --no-password
 
 ---
 
+## 🔧 IPFS Troubleshooting
+
+Having trouble with IPFS? Check our [IPFS Troubleshooting Guide](IPFS_troubleshooting.md) for:
+
+- **Common issues and solutions**
+- **Step-by-step setup instructions**
+- **Debugging tools and commands**
+- **Best practices for reliable syncing**
+
+Quick diagnostic commands:
+```bash
+# Check if IPFS daemon is running
+ipfs id
+
+# Test IPFS connection
+filu-x resolve --verbose fx://bafkreigmgbbmwvx5qe74i2sqmr3er2c7pgyjt5edjau5w57737vnld24pi
+
+# Enable verbose output
+filu-x sync-followed -v --wait 60
+
+# Check manifest versions
+cat ./data/public/ipfs/Filu-X.json | jq '.manifest_version'
+cat ./data/cached/ipfs/follows/alice/Filu-X.json | jq '.manifest_version'
+```
+
+---
+
 ## 🗺️ Roadmap
 
 | Version   | Stage       | Focus                                                             |
@@ -376,7 +438,8 @@ FILU_X_DATA_DIR=./test_data/charlie filu-x init charlie --no-password
 | 0.0.2     | Alpha ✅     | Real IPFS integration, mock fallback                              |
 | 0.0.3     | Alpha ✅     | Multi-profile support (`--data-dir`), `ls` command                |
 | 0.0.4     | Alpha ✅     | Deterministic IDs, cryptographic identity, collision handling     |
-| **0.0.5** | **Alpha 🚀** | **Social Alpha: threads, reactions, reposts, thread following**   |
+| 0.0.5     | Alpha ✅     | Social Alpha: threads, reactions, reposts, thread following       |
+| **0.0.6** | **Alpha 🚀** | **Version management, IPFS troubleshooting, sync improvements**   |
 | 0.1.x     | Beta        | Password-encrypted keys, Nostr notifications, Web UI              |
 | 1.0.0     | Stable      | Multi-protocol fallback, ActivityPub bridge                       |
 
@@ -418,14 +481,14 @@ Filu-X doesn't replace protocols – it composes them. Your data remains yours, 
 
 ---
 
-## Known Limitations (Alpha 0.0.5)
+## Known Limitations (Alpha 0.0.6)
 
 Filu-X alpha is **development software** – not for production use.
 
 | Limitation | Why it exists | Fixed in |
 |------------|---------------|----------|
 | Private keys unencrypted | Simplifies alpha development | Beta 0.1.0 (password encryption) |
-| Thread discovery limited | Only root posts cached | Beta 0.1.0 (full thread fetching) |
+| IPNS propagation delay | IPFS network latency | Use `--wait` flag or direct CIDs |
 | No private messaging | Not implemented yet | Beta 0.2.0 (encrypted groups) |
 
 ⚠️ **Do not use alpha for sensitive communications.**  
@@ -442,6 +505,3 @@ Filu-X is licensed under the Apache License 2.0 – see [LICENSE](LICENSE) for d
 ## 🙏 Contributing
 
 Contributions are welcome! See [TODO.md](TODO.md) for development roadmap and [SECURITY.md](SECURITY.md) for security guidelines.
-```
-
-

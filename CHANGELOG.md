@@ -1,5 +1,29 @@
 # Changelog
 
+
+## [0.0.6] - 2026-02-21 (Alpha)
+
+### Added
+- **IPFS troubleshooting guide** – step-by-step instructions for IPFS setup
+- **Manifest versioning** – `major.minor.patch.build` version numbers
+- **Version increment on updates** – manifest version increases with each sync
+- **Better sync logic** – only updates manifest when posts have changed
+- **Deterministic ID to IPFS CID conversion** – automatic during sync
+
+### Fixed
+- `sync.py` now properly adds posts to IPFS before updating manifest
+- Manifest version tracking for debugging
+- IPNS propagation wait option (`--wait` flag)
+- Support for both deterministic IDs and IPFS CIDs in sync-followed
+
+### Changed
+- Version bumped to 0.0.6
+- Improved error messages and debug output
+- Cache structure now uses `data/cached/ipfs/follows/`
+
+## [0.0.5] - 2026-02-20 (Alpha)
+...
+
 ## [0.0.4] - 2026-02-16 (Alpha)
 
 ### Added
