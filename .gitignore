@@ -7,3 +7,24 @@ cleanup-test-data.py
 projeckt.sh
 docs
 docs/*
+# Data directory (sisältää käyttäjien tiedot)
+/data/
+!/data/.gitkeep
+
+# Test data
+/test_data/
+!/test_data/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# IPFS
+.ipfs/
+.cache/ipfs_mock/
+
+# CID tracker
+cid_history.json
