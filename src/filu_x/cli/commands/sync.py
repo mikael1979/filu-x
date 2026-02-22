@@ -108,6 +108,7 @@ def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
                 click.echo(f"   📊 Manifest before update: {entries_before} entries, version {old_version}")
             
             # Update each post entry with its IPFS CID
+            updated_count = 0
             for entry in manifest.get("entries", []):
                 post_filename = entry.get("path", "").split("/")[-1]
                 if post_filename in post_cids:
@@ -116,6 +117,7 @@ def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
                     if old_cid != new_cid:
                         entry["cid"] = new_cid
                         manifest_updated = True
+                        updated_count += 1
                         if verbose:
                             click.echo(f"   🔄 Manifest entry updated: {old_cid[:16]}... → {new_cid[:16]}...")
             
@@ -135,9 +137,10 @@ def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
                 if verbose:
                     entries_after = len(manifest.get("entries", []))
                     click.echo(f"   📝 Manifest updated: {entries_after} entries, version {old_version} → {new_version}")
+                    click.echo(f"   📝 Updated {updated_count} entries with IPFS CIDs")
             else:
                 if verbose:
-                    click.echo(f"   ℹ️  No manifest updates needed")
+                    click.echo(f"   ℹ️  No manifest updates needed (all posts already have IPFS CIDs)")
                     
         except Exception as e:
             errors.append(("manifest_update", str(e)))
@@ -164,28 +167,35 @@ def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
             errors.append(("ipns_publish", str(e)))
     
     # ========== STEP 6: Update profile (optional) ==========
-    if manifest_cid and not dry_run and manifest_updated:
+    if manifest_cid and not dry_run:
         try:
             profile = layout.load_json(layout.profile_path(protocol="ipfs"))
             old_manifest_cid = profile.get("manifest_cid")
             
-            # Update profile's manifest_cid (for backward compatibility)
-            profile["manifest_cid"] = manifest_cid
-            profile["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            # Always update profile if manifest changed or if manifest_cid is missing
+            needs_update = manifest_updated or not old_manifest_cid
             
-            with open(layout.private_key_path(), "rb") as f:
-                privkey = f.read()
-            profile["signature"] = sign_json(profile, privkey)
-            
-            # Save updated profile locally
-            layout.save_json(layout.profile_path(protocol="ipfs"), profile, private=False)
-            
-            # Add updated profile to IPFS
-            new_profile_cid = ipfs.add_file(layout.profile_path(protocol="ipfs"))
-            
-            if verbose:
-                click.echo(click.style(f"   📢 Profile manifest_cid updated: {old_manifest_cid[:16] if old_manifest_cid else 'None'}... → {manifest_cid[:16]}...", fg="green"))
-                click.echo(f"   📦 Profile re-synced: {new_profile_cid[:16]}...")
+            if needs_update:
+                # Update profile's manifest_cid (for backward compatibility)
+                profile["manifest_cid"] = manifest_cid
+                profile["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                
+                with open(layout.private_key_path(), "rb") as f:
+                    privkey = f.read()
+                profile["signature"] = sign_json(profile, privkey)
+                
+                # Save updated profile locally
+                layout.save_json(layout.profile_path(protocol="ipfs"), profile, private=False)
+                
+                # Add updated profile to IPFS
+                new_profile_cid = ipfs.add_file(layout.profile_path(protocol="ipfs"))
+                
+                if verbose:
+                    click.echo(click.style(f"   📢 Profile manifest_cid updated: {old_manifest_cid[:16] if old_manifest_cid else 'None'}... → {manifest_cid[:16]}...", fg="green"))
+                    click.echo(f"   📦 Profile re-synced: {new_profile_cid[:16]}...")
+            else:
+                if verbose:
+                    click.echo(f"   ℹ️  Profile already up to date")
                 
         except Exception as e:
             errors.append(("profile_update", str(e)))
@@ -195,11 +205,11 @@ def sync(ctx, dry_run: bool, verbose: bool, force_mock: bool):
     status = "DRY RUN" if dry_run else "COMPLETED"
     click.echo(click.style(f"📊 Sync {status} ({mode_str})", fg="green", bold=True))
     click.echo(f"   Files synced: {len(synced)}")
-    click.echo(f"   Posts: {len(post_cids)}")
+    click.echo(f"   Posts with IPFS CIDs: {len(post_cids)}")
     if manifest_updated:
         click.echo(f"   Manifest updated: Yes (new version)")
     else:
-        click.echo(f"   Manifest updated: No")
+        click.echo(f"   Manifest updated: No (already current)")
     
     if profile_cid and not dry_run:
         gateway_url = ipfs.get_gateway_url(profile_cid)
