@@ -1,5 +1,5 @@
 {
-  "$schema": "https://filu-x.org/schemas/profile-v0.0.6.json",
+  "$schema": "https://filu-x.org/schemas/profile-v{{ version }}.json",
   "version": "{{ version }}",
   "pubkey": "{{ pubkey }}",
   "display_name": "@{{ username }}",
@@ -7,6 +7,7 @@
   "author": "@{{ username }}",
   "profile_ipns": "{{ profile_ipns }}",
   "manifest_ipns": "{{ manifest_ipns }}",
+  "threads_ipns": {{ threads_ipns|default({})|tojson }},  {# Map of thread_id -> IPNS #}
   "bio": "",
   "avatar_url": "",
   "created_at": "{{ now_iso8601 }}",

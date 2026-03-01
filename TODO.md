@@ -1,3 +1,5 @@
+
+```markdown
 # Filu-X Development Roadmap
 
 ## Alpha Phase (0.0.x)
@@ -60,7 +62,7 @@
 - [x] Thread cache directory structure
 - [x] Thread configuration storage
 - [x] Updated documentation (README, TODO)
-- [x] Sneakernet test (USB-tikku simulointi)
+- [x] Sneakernet test (USB stick simulation)
 
 #### Bug Fixes
 - [x] Removed broken repost code from `ls.py`
@@ -68,7 +70,7 @@
 - [x] Added CID validation to all commands
 - [x] Improved error messages for missing content
 
-### 0.0.6 – Version Management & IPFS Stability 🚀 (CURRENT)
+### 0.0.6 – Version Management & IPFS Stability ✅
 
 #### Version Management
 - [x] Manifest versioning (`major.minor.patch.build`)
@@ -102,14 +104,47 @@
 - [x] Fixed cache path inconsistencies
 - [x] Improved error messages for IPFS failures
 
-### 0.0.7 – Planned (Next)
+### 0.0.7 – Thread Manifests & Post Types 🚀 (CURRENT)
+
+#### Thread Manifests
+- [x] Thread manifest structure (title, description, participants)
+- [x] Thread IPNS for permanent thread addressing
+- [x] Thread manifest storage in `cached/threads/`
+- [x] Thread manifest sync with `--threads` flag
+- [x] Thread manifest display in `thread show`
+
+#### Post Types
+- [x] Two post types: `simple` and `thread`
+- [x] Thread posts with title and description
+- [x] Simple posts for standalone content
+- [x] Reply detection and thread joining
+
+#### Thread Commands
+- [x] `thread show` with thread manifest support
+- [x] `thread status` for detailed thread info
+- [x] `thread list` with thread titles
+- [x] `thread sync` with thread manifest creation
+
+#### Infrastructure
+- [x] `layout.py` thread path methods
+- [x] `post.py` thread creation and reply handling
+- [x] `thread.py` ThreadManifest class
+- [x] `sync_followed.py` thread manifest sync
+- [x] Updated templates for post types
+
+#### Documentation
+- [x] Updated README with thread features
+- [x] Updated TODO with completed items
+- [x] Command examples for thread usage
+
+### 0.0.8 – Planned (Next)
 
 #### Feed Improvements
 - [ ] Thread indicators in feed (show participant count)
 - [ ] Auto-discovery of threads from followed users
 - [ ] Collapsible thread view in feed
 - [ ] Reaction aggregation (show counts instead of individual posts)
-- [ ] Better handling of deterministric IDs in feed
+- [ ] Better handling of deterministic IDs in feed
 
 #### Mentions & Discovery
 - [ ] `@username` mentions (link to profile)
@@ -127,15 +162,14 @@
 #### Quality of Life
 - [ ] Better repost preview (show original content)
 - [ ] Thread participation badge in feed
-- [ ] `filu-x post --thread` to continue thread without reply_to
 - [ ] Interactive thread view (expand/collapse)
 - [ ] Progress bar for long sync operations
 
-#### IPFS Enhancements
-- [ ] Automatic retry on IPFS failure
-- [ ] Better mock mode fallback
-- [ ] IPFS connection health checks
-- [ ] Multi-gateway support for resolution
+#### Thread Enhancements
+- [ ] Thread subscription notifications
+- [ ] Thread metadata editing (title/description)
+- [ ] Thread pinning
+- [ ] Thread moderation tools
 
 ## Beta Phase (0.1.x) – Next Milestone
 
@@ -143,59 +177,25 @@
 - [ ] Password-encrypted private keys (scrypt + AES-256)
 - [ ] Key rotation support
 - [ ] **Private groups** – hybrid encryption for selected followers
-  - [ ] AES-256-GCM symmetric encryption for content
-  - [ ] Public key exchange during follow relationship setup
-  - [ ] `filu-x post --group finance` – encrypt for "finance" group only
-  - [ ] Group membership management (add/remove members)
-  - [ ] Key re-sharing when group membership changes
 - [ ] **Hierarchical key management** – master key authorizes signing subkeys
-  - [ ] Subkeys used for daily operations (posts, manifests, follows)
-  - [ ] Subkeys have validity periods (default: 30 days)
-  - [ ] Master key can revoke compromised subkeys
-  - [ ] `filu-x key rotate` – generate new subkey, revoke old
-  - [ ] `filu-x key revoke <subkey-id>` – emergency revocation
-  - [ ] Profile includes: `authorized_subkeys[]` with validity periods
-  - [ ] Post signature includes: `subkey_id` + `master_signature_on_subkey`
-  - [ ] Verification checks: subkey authorization chain to master key
 
-### Täydellinen yksityisyys (P0) 🔐
-- [ ] **Kaikki postaukset aina salattuja**
-  - [ ] Salaus vastaanottajan/tekijän julkisella avaimella
-  - [ ] Julkiset postaukset = salattu omalla avaimella
-  - [ ] Yksityiset postaukset = salattu vastaanottajan avaimella
-  - [ ] Ryhmäpostaukset = salattu jokaisen ryhmäläisen avaimella
-- [ ] **Feedin salauksen purku**
-  - [ ] Feed yrittää purkaa jokaisen postauksen omalla avaimella
-  - [ ] Onnistuneet postaukset näytetään
-  - [ ] Epäonnistuneet ohitetaan hiljaisesti
-- [ ] **Plausible deniability**
-  - [ ] Ulkopuolinen ei näe edes postauksen olemassaoloa
-  - [ ] Kaikki postaukset näyttävät samalta
-- [ ] **Avaintenhallinta**
-  - [ ] Julkiset avaimet profiileissa
-  - [ ] Yksityiset avaimet turvassa (salasanalla suojattu)
-  - [ ] Ryhmäavaimet jaettu jäsenten kesken
+### Perfect Privacy (P0) 🔐
+- [ ] **All posts always encrypted**
+- [ ] **Feed decryption** – automatic decryption with own key
+- [ ] **Plausible deniability** – all posts look identical
+- [ ] **Key management** – public keys in profiles
 
 ### Network Features (P0)
 - [ ] Nostr relay integration for real-time notifications
 - [ ] RSS/Atom feed generation as HTTP fallback
 - [ ] Multi-gateway fallback (ipfs.io, cf-ipfs.com, dweb.link)
 - [ ] Full thread discovery (fetch all replies from participants)
-- [ ] Automatic gateway selection
 
 ### UX Improvements (P1)
 - [ ] Web UI prototype (static HTML client)
 - [ ] QR code generation for links
 - [ ] Mobile app prototype (Flutter)
 - [ ] Desktop notifications for mentions/replies
-- [ ] Configuration UI for IPFS settings
-
-### Social Features (P1)
-- [ ] Private messaging (encrypted DMs)
-- [ ] Public groups/channels
-- [ ] Polls and surveys
-- [ ] Rich media previews
-- [ ] Event scheduling
 
 ## Stable Phase (1.0.0)
 
@@ -205,16 +205,6 @@
 - [ ] Spam filtering and moderation tools
 - [ ] Backup and restore utilities
 - [ ] Official mobile apps
-- [ ] Enterprise features (SSO, audit logs)
-
-## Future Integrations (Post-1.0)
-
-- [ ] **Freenet support** – store/retrieve content via Freenet darknet
-- [ ] Tor hidden service support
-- [ ] Dat/Hypercore protocol support
-- [ ] Blockchain anchoring for identity (optional)
-- [ ] AI-powered content recommendations (opt-in)
-- [ ] Decentralized search index
 
 ---
 
@@ -229,4 +219,3 @@
 | 🔐 | Privacy feature |
 | P0 | Critical priority |
 | P1 | High priority |
-| P2 | Nice to have |

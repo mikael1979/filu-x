@@ -1,0 +1,22 @@
+{
+  "$schema": "https://filu-x.org/schemas/thread-manifest-v{{ version }}.json",
+  "version": "{{ version }}",
+  "thread_id": "{{ thread_id }}",
+  "thread_ipns": "{{ thread_ipns }}",
+  "title": "{{ thread_title }}",
+  "description": "{{ thread_description }}",
+  "created_by": "{{ created_by }}",
+  "created_at": "{{ created_at }}",
+  "updated_at": "{{ updated_at }}",
+  "participants": {{ participants|tojson }},
+  "participant_count": {{ participants|length }},
+  "post_count": {{ post_count }},
+  "root_post": {
+    "cid": "{{ root_post_cid }}",
+    "author": "{{ root_post_author }}",
+    "created_at": "{{ root_post_created_at }}"
+  },
+  "posts": {{ posts|tojson }},  // Lista postauksista (cid, author, created_at, reply_to)
+  "metadata": {},
+  "signature": "{{ signature }}"
+}

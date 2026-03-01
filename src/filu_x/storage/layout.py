@@ -1,4 +1,4 @@
-"""Storage layout for Filu-X file-based architecture with protocol-specific directories"""
+"""Storage layout for Filu-X file-based architecture with protocol-specific directories and thread support"""
 from pathlib import Path
 from typing import Optional, List
 import json
@@ -32,6 +32,7 @@ class FiluXStorageLayout:
         self.cached_dir = self.base_path / "cached"
         self.cached_ipfs_dir = self.cached_dir / "ipfs"
         self.cached_usb_dir = self.cached_dir / "usb"
+        self.cached_threads_dir = self.cached_dir / "threads"
         
         # Blobs for large files (images, videos, etc.)
         self.blobs_dir = self.base_path / "blobs"
@@ -49,11 +50,13 @@ class FiluXStorageLayout:
             self.private_dir / "sessions",
             self.public_ipfs_dir / "posts",
             self.public_ipfs_dir / "blobs",
+            self.public_ipfs_dir / "threads",  # Thread manifests in IPFS
             self.public_usb_dir / "posts",
             self.public_usb_dir / "blobs",
+            self.public_usb_dir / "threads",   # Thread manifests in USB
             self.cached_ipfs_dir / "follows",
             self.cached_usb_dir / "follows",
-            self.cached_dir / "threads",
+            self.cached_threads_dir,           # Thread cache
             self.blobs_videos_dir,
             self.blobs_images_dir,
             self.blobs_audio_dir,
@@ -96,6 +99,24 @@ class FiluXStorageLayout:
             return self.public_ipfs_dir / "posts" / f"{post_id}.json"
         elif protocol == "usb":
             return self.public_usb_dir / "posts" / f"{post_id}.json"
+        else:
+            raise ValueError(f"Unknown protocol: {protocol}")
+    
+    def thread_manifest_path(self, thread_id: str, protocol: str = "ipfs") -> Path:
+        """
+        Path to thread manifest file for a specific protocol.
+        
+        Args:
+            thread_id: Thread ID (CID of root post)
+            protocol: "ipfs" or "usb"
+        
+        Returns:
+            Path to thread manifest JSON file
+        """
+        if protocol == "ipfs":
+            return self.public_ipfs_dir / "threads" / f"{thread_id}.json"
+        elif protocol == "usb":
+            return self.public_usb_dir / "threads" / f"{thread_id}.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -167,11 +188,48 @@ class FiluXStorageLayout:
         safe_username = self._sanitize_username(username)
         return self.cached_follows_dir(protocol) / safe_username
     
-    def thread_cache_path(self, thread_id: str) -> Path:
-        """Path to thread cache file"""
-        path = self.cached_dir / "threads" / f"{thread_id}.json"
+    # ========== THREAD PATHS ==========
+    
+    def cached_threads_path(self) -> Path:
+        """Path to threads cache directory"""
+        return self.cached_threads_dir
+    
+    def cached_thread_manifest_path(self, thread_id: str) -> Path:
+        """Path to cached thread manifest file"""
+        return self.cached_threads_dir / f"{thread_id}.json"
+    
+    def thread_ipns_path(self, thread_id: str) -> Path:
+        """
+        Path to file storing thread's IPNS name.
+        
+        Args:
+            thread_id: Thread ID
+        
+        Returns:
+            Path to text file containing IPNS name
+        """
+        return self.cached_threads_dir / f"{thread_id}_ipns.txt"
+    
+    def thread_ipns_name(self, thread_id: str) -> Optional[str]:
+        """
+        Get thread's IPNS name from cache if exists.
+        
+        Args:
+            thread_id: Thread ID
+        
+        Returns:
+            IPNS name or None
+        """
+        path = self.thread_ipns_path(thread_id)
+        if path.exists():
+            return path.read_text().strip()
+        return None
+    
+    def save_thread_ipns(self, thread_id: str, ipns_name: str):
+        """Save thread's IPNS name to cache."""
+        path = self.thread_ipns_path(thread_id)
         path.parent.mkdir(parents=True, exist_ok=True)
-        return path
+        path.write_text(ipns_name)
     
     # ========== PRIVATE PATHS ==========
     
@@ -283,6 +341,13 @@ class FiluXStorageLayout:
         if not posts_dir.exists():
             return []
         return sorted(posts_dir.glob("*.json"), reverse=True)
+    
+    def list_threads(self, protocol: str = "ipfs") -> List[str]:
+        """List all thread manifest IDs"""
+        threads_dir = self.public_ipfs_dir / "threads" if protocol == "ipfs" else self.public_usb_dir / "threads"
+        if not threads_dir.exists():
+            return []
+        return [f.stem for f in threads_dir.glob("*.json")]
     
     def get_disk_usage(self) -> int:
         """Calculate total disk usage in bytes"""
