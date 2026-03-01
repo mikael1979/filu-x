@@ -24,8 +24,9 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 &gt; "In a decentralized world, display names can collide.  
 &gt; Identity is cryptographic – your pubkey defines who you are."
 
----
+## Filu-X Core Principle
 
+```
 ┌─────────────────────────────────────────┐
 │         ANY PROTOCOL → SAME RESULT      │
 │                                         │
@@ -47,9 +48,7 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 │  💡 Protocol is just "transport"        │
 │     Data is always the same format      │
 └─────────────────────────────────────────┘
-
-
----
+```
 
 ## 🚀 Quick Start
 
