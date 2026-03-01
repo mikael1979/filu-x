@@ -26,8 +26,6 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 
 ---
 
-## Filu-X Core Principle
-
 ┌─────────────────────────────────────────┐
 │         ANY PROTOCOL → SAME RESULT      │
 │                                         │
@@ -47,7 +45,7 @@ Filu-X is a file-based approach to decentralized social media following Unix phi
 │  4. Display chronologically             │
 │                                         │
 │  💡 Protocol is just "transport"        │
-│     Data is always the same format        │
+│     Data is always the same format      │
 └─────────────────────────────────────────┘
 
 
