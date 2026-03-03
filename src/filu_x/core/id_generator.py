@@ -1,5 +1,7 @@
 """Deterministic ID generation for posts and profiles"""
 import hashlib
+from datetime import datetime
+import re
 from typing import Optional
 
 def generate_post_id(pubkey: str, timestamp: str, content: str) -> str:
@@ -10,14 +12,6 @@ def generate_post_id(pubkey: str, timestamp: str, content: str) -> str:
     NEVER includes display name – identity is cryptographic, not social.
     
     Returns 32-character hex string (first 128 bits of SHA-256).
-    
-    Example:
-      generate_post_id(
-        "ed25519:8a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef",
-        "2026-02-16T12:00:00Z",
-        "Hello world!"
-      )
-      → "a1b2c3d4e5f678901234567890abcdef"
     """
     # Normalize inputs to prevent canonicalization attacks
     normalized_pubkey = pubkey.strip().lower()
@@ -34,6 +28,65 @@ def generate_post_id(pubkey: str, timestamp: str, content: str) -> str:
     # Return first 32 chars (128 bits – sufficient for global uniqueness)
     return full_hash[:32]
 
+def generate_local_id(post_hash: str, manifest_version: str, custom_name: str = None, post_number: int = None) -> str:
+    """
+    Generate a human-friendly local ID that includes manifest version and post hash.
+    
+    Format: {name}.{manifest_version}_{post_hash_6chars}
+    
+    Args:
+        post_hash: Full post hash (32 chars)
+        manifest_version: Manifest version string (e.g. "0.0.0.42")
+        custom_name: User-provided name (optional)
+        post_number: Auto-generated post number (optional)
+    
+    Returns:
+        Local ID in format: {name}.{manifest_version}_{post_hash_6chars}
+    """
+    # Take first 6 characters of post hash for fingerprint
+    post_fingerprint = post_hash[:6]
+    
+    # Clean manifest version (replace dots with underscores for filesystem safety)
+    clean_version = manifest_version.replace('.', '_')
+    
+    # Determine the name part
+    if custom_name:
+        # Sanitize custom name
+        safe_name = custom_name.strip().lower()
+        safe_name = re.sub(r'[^a-z0-9]+', '-', safe_name)
+        safe_name = safe_name.strip('-')
+        name_part = safe_name
+    elif post_number is not None:
+        name_part = f"post{post_number}"
+    else:
+        name_part = "post"
+    
+    return f"{name_part}.{clean_version}_{post_fingerprint}"
+
+def parse_local_id(local_id: str) -> dict:
+    """
+    Parse a local ID into its components.
+    
+    Format: {name}.{manifest_version}_{post_hash_6chars}
+    
+    Returns:
+        Dict with keys: name, manifest_version, post_fingerprint
+    """
+    # Match pattern: name.version_hash
+    pattern = r'^(.+)\.([0-9_]+)_([a-f0-9]{6})$'
+    match = re.match(pattern, local_id)
+    
+    if match:
+        name, version, fingerprint = match.groups()
+        # Convert underscores back to dots for version
+        manifest_version = version.replace('_', '.')
+        return {
+            "name": name,
+            "manifest_version": manifest_version,
+            "post_fingerprint": fingerprint
+        }
+    
+    return None
 
 def normalize_display_name(display_name: str) -> str:
     """
@@ -43,10 +96,6 @@ def normalize_display_name(display_name: str) -> str:
       - Strip @ prefix/suffix
       - Lowercase
       - Remove extra whitespace
-    
-    Example:
-      "@Alice " → "alice"
-      "bob" → "bob"
     """
     name = display_name.strip()
     if name.startswith("@"):
@@ -54,7 +103,6 @@ def normalize_display_name(display_name: str) -> str:
     if name.endswith("@"):
         name = name[:-1]
     return name.lower()
-
 
 def detect_display_name_collision(
     display_name: str,

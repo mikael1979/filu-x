@@ -16,13 +16,15 @@ from .commands.rm import rm
 from .commands.repost import repost
 from .commands.thread import thread
 from .commands.fetch import fetch
+from .commands.local import local
+
 
 @click.group()
-@click.version_option(version="0.0.4", prog_name="filu-x")
+@click.version_option(version="0.0.8", prog_name="filu-x")
 @click.option(
     "--data-dir",
     type=click.Path(file_okay=False),
-    help="Custom data directory (default: ~/.local/share/filu-x). "
+    help="Custom data directory (default: ./data in current directory). "
          "Also set via FILU_X_DATA_DIR environment variable."
 )
 @click.pass_context
@@ -39,7 +41,8 @@ def cli(ctx, data_dir: str):
     elif "FILU_X_DATA_DIR" in os.environ:
         ctx.obj["data_dir"] = Path(os.environ["FILU_X_DATA_DIR"]).resolve()
     else:
-        ctx.obj["data_dir"] = None
+        # Default to ./data in current working directory
+        ctx.obj["data_dir"] = Path.cwd() / "data"
 
 cli.add_command(init)
 cli.add_command(post)
@@ -54,6 +57,7 @@ cli.add_command(rm)
 cli.add_command(repost)
 cli.add_command(thread)
 cli.add_command(fetch)
+cli.add_command(local)
 
 if __name__ == "__main__":
     cli()

@@ -190,6 +190,44 @@ filu-x sync -v  # 1 → 0.0.0.1 → 0.0.0.2
 | `filu-x ls`                      | List local files                  |
 | `filu-x rm <post-id>`            | Delete a post                     |
 
+## 📝 Local IDs
+
+Every post gets a human-friendly local identifier that makes it easy to reference and remember.
+
+### Format: `{name}.{manifest_version}_{post_hash_6chars}`
+
+Examples:
+- `post42.0_0_0_1_a1b2c3` – Auto-numbered post
+- `my-discussion.0_0_0_1_a1b2c3` – Thread with title
+- `announcement.0_0_0_1_g7h8i9` – Custom local ID
+
+### Commands
+
+```bash
+# Create a post with auto-generated ID
+filu-x post "Hello world!"  
+# → post1.0_0_0_0_a1b2c3
+
+# Create a thread (uses title as name)
+filu-x post "First" --title "My Discussion"
+# → my-discussion.0_0_0_0_d4e5f6
+
+# Use custom local ID
+filu-x post "Important" --local-id announcement
+# → announcement.0_0_0_0_g7h8i9
+
+# List all local posts
+filu-x local list
+
+# Show a local post
+filu-x local show my-discussion.0_0_0_0_d4e5f6
+
+# Rename a local post
+filu-x local rename announcement.0_0_0_0_g7h8i9 urgent-update
+
+# Delete local copy (IPFS version remains)
+filu-x local rm old-post.0_0_0_0_a1b2c3
+
 🗺️ Roadmap
 
 | Version   | Stage        | Focus                                                            |

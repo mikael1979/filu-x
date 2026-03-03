@@ -2,6 +2,10 @@
   "$schema": "https://filu-x.org/schemas/post-v{{ version }}.json",
   "version": "{{ version }}",
   "id": "{{ post_id }}",
+  "local_id": "{{ local_id }}",
+  "cid": null,
+  "http_url": null,
+  "ipns": {{ thread_ipns|default('null')|tojson }},
   "author": "@{{ username }}",
   "pubkey": "{{ pubkey }}",
   "post_type": "{{ post_type }}",
@@ -9,7 +13,7 @@
   "content": {{ content|tojson }},
   "attachments": [],
   "prev_post_cid": {{ prev_post_cid|default('null')|tojson }},
-  "tags": [],
+  "tags": {{ tags|default([])|tojson }},
   {# Thread-specific fields (only if post_type = "thread") #}
   "thread_title": {{ thread_title|default('null')|tojson }},
   "thread_description": {{ thread_description|default('null')|tojson }},
@@ -25,8 +29,14 @@
   "access_points": [
     {
       "protocol": "local",
-      "path": "posts/{{ post_id }}.json",
+      "path": "local/posts/{{ local_id }}",
       "priority": 1
+    },
+    {
+      "protocol": "ipfs",
+      "cid": null,
+      "path": "posts/{{ post_id }}.json",
+      "priority": 2
     }
   ]
 }
