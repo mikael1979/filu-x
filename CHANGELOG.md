@@ -1,7 +1,38 @@
 # Changelog
 
-
 ## [0.0.8] - 2026-03-03 (Alpha)
+
+### Added
+- **Comprehensive test suite** – 20 passing tests covering all major functionality
+  - End-to-end tests for basic user flows
+  - Integration tests for CLI commands (init, post)
+  - Unit tests for core modules (crypto, IPFS client, ID generation)
+  - Local ID system tests with 6 test cases
+
+- **Test infrastructure**
+  - `conftest.py` with reusable fixtures (temp_dir, user, mock_ipfs, etc.)
+  - `pytest.ini` with custom configuration
+  - Mock IPFS client for testing without network
+  - Test coverage reporting with pytest-cov
+
+- **Documentation**
+  - Testing guide in `tests/README.md`
+  - Test coverage targets and best practices
+
+### Changed
+- Reorganized test structure into unit/integration/e2e categories
+- Updated post template to include missing `post_type` field
+- Fixed test initialization to use correct data directories
+
+### Fixed
+- `test_init_existing_user` now correctly checks exit code
+- `test_create_thread_post` now properly validates thread posts
+- All 20 tests now pass consistently
+
+
+...
+
+
 
 ### Added
 - **Local ID system** – Human-friendly post identifiers
@@ -36,7 +67,7 @@
 ## [0.0.7] - 2026-03-01 (Alpha)
 ...
 
-## [0.0.7] - 2026-03-01 (Alpha)
+
 
 ### Added
 - **Thread manifests** – Each thread now has a manifest with title, description, and participant list

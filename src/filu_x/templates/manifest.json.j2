@@ -1,10 +1,26 @@
 {
-  "$schema": "https://filu-x.org/schemas/manifest-v{{ version }}.json",
-  "version": "{{ version }}",
+  "$schema": "https://filu-x.org/schemas/manifest-v0.0.8.json",
+  "version": "0.0.8",
   "manifest_version": "{{ manifest_version }}",
   "author": "@{{ username }}",
+  "pubkey": "{{ pubkey }}",
   "root_cid": null,
   "entries": [],
-  "access_points": [],
+  "access_points": {
+    "ipfs": {
+      "cid": null,
+      "gateway": "https://ipfs.io/ipfs/"
+    },
+    "ipns": {
+      "name": null,
+      "gateway": "https://ipfs.io/ipns/"
+    },
+    "http": {
+      "primary": null,
+      "mirrors": []
+    }
+  },
+  "created_at": "{{ now_iso8601 }}",
+  "updated_at": "{{ now_iso8601 }}",
   "signature": "{{ signature }}"
 }

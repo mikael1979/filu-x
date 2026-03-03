@@ -1,42 +1,59 @@
 {
-  "$schema": "https://filu-x.org/schemas/post-v{{ version }}.json",
-  "version": "{{ version }}",
+  "$schema": "https://filu-x.org/schemas/post-v0.0.8.json",
+  "version": "0.0.8",
   "id": "{{ post_id }}",
   "local_id": "{{ local_id }}",
-  "cid": null,
-  "http_url": null,
-  "ipns": {{ thread_ipns|default('null')|tojson }},
   "author": "@{{ username }}",
   "pubkey": "{{ pubkey }}",
   "post_type": "{{ post_type }}",
-  "content_type": "text/plain",
   "content": {{ content|tojson }},
+  "protocols": {
+    "ipfs": {
+      "cid": null,
+      "gateway": "https://ipfs.io/ipfs/",
+      "ipns": {
+        "name": {{ thread_ipns|default('null')|tojson }},
+        "gateway": "https://ipfs.io/ipns/",
+        "sequence": 0,
+        "previous": null
+      }
+    },
+    "http": {
+      "primary": null,
+      "mirrors": [],
+      "last_checked": null
+    },
+    "nostr": {
+      "event_id": null,
+      "relay": null,
+      "kind": 1,
+      "tags": []
+    },
+    "freenet": {
+      "uri": null,
+      "key": null,
+      "edition": 0
+    },
+    "hypercore": {
+      "key": null,
+      "seq": 0
+    },
+    "activitypub": {
+      "uri": null,
+      "type": "Note",
+      "inbox": null
+    }
+  },
   "attachments": [],
   "prev_post_cid": {{ prev_post_cid|default('null')|tojson }},
   "tags": {{ tags|default([])|tojson }},
-  {# Thread-specific fields (only if post_type = "thread") #}
   "thread_title": {{ thread_title|default('null')|tojson }},
   "thread_description": {{ thread_description|default('null')|tojson }},
-  "thread_ipns": {{ thread_ipns|default('null')|tojson }},
-  {# Reply-specific fields (only if post_type = "simple" and reply_to exists) #}
   "thread_id": {{ thread_id|default('null')|tojson }},
   "reply_to": {{ reply_to|default('null')|tojson }},
   "participants": {{ participants|default([])|tojson }},
   "reply_count": 0,
   "created_at": "{{ created_at }}",
   "updated_at": "{{ updated_at }}",
-  "signature": "{{ signature }}",
-  "access_points": [
-    {
-      "protocol": "local",
-      "path": "local/posts/{{ local_id }}",
-      "priority": 1
-    },
-    {
-      "protocol": "ipfs",
-      "cid": null,
-      "path": "posts/{{ post_id }}.json",
-      "priority": 2
-    }
-  ]
+  "signature": "{{ signature }}"
 }

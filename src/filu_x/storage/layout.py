@@ -27,11 +27,13 @@ class FiluXStorageLayout:
         self.public_dir = self.base_path / "public"
         self.public_ipfs_dir = self.public_dir / "ipfs"
         self.public_usb_dir = self.public_dir / "usb"
+        self.public_http_dir = self.public_dir / "http"  # UUSI: HTTP-protokolla
         
         # Cached (organized by protocol and user)
         self.cached_dir = self.base_path / "cached"
         self.cached_ipfs_dir = self.cached_dir / "ipfs"
         self.cached_usb_dir = self.cached_dir / "usb"
+        self.cached_http_dir = self.cached_dir / "http"  # UUSI: HTTP-välimuisti
         self.cached_threads_dir = self.cached_dir / "threads"
         
         # Blobs for large files (images, videos, etc.)
@@ -50,13 +52,17 @@ class FiluXStorageLayout:
             self.private_dir / "sessions",
             self.public_ipfs_dir / "posts",
             self.public_ipfs_dir / "blobs",
-            self.public_ipfs_dir / "threads",  # Thread manifests in IPFS
+            self.public_ipfs_dir / "threads",
             self.public_usb_dir / "posts",
             self.public_usb_dir / "blobs",
-            self.public_usb_dir / "threads",   # Thread manifests in USB
+            self.public_usb_dir / "threads",
+            self.public_http_dir / "posts",      # UUSI: HTTP posts
+            self.public_http_dir / "blobs",       # UUSI: HTTP blobs
+            self.public_http_dir / "threads",     # UUSI: HTTP threads
             self.cached_ipfs_dir / "follows",
             self.cached_usb_dir / "follows",
-            self.cached_threads_dir,           # Thread cache
+            self.cached_http_dir / "follows",     # UUSI: HTTP cache
+            self.cached_threads_dir,
             self.blobs_videos_dir,
             self.blobs_images_dir,
             self.blobs_audio_dir,
@@ -72,6 +78,8 @@ class FiluXStorageLayout:
             return self.public_ipfs_dir / "profile.json"
         elif protocol == "usb":
             return self.public_usb_dir / "profile.json"
+        elif protocol == "http":
+            return self.public_http_dir / "profile.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -81,6 +89,8 @@ class FiluXStorageLayout:
             return self.public_ipfs_dir / "Filu-X.json"
         elif protocol == "usb":
             return self.public_usb_dir / "Filu-X.json"
+        elif protocol == "http":
+            return self.public_http_dir / "Filu-X.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -90,6 +100,8 @@ class FiluXStorageLayout:
             return self.public_ipfs_dir / "follow_list.json"
         elif protocol == "usb":
             return self.public_usb_dir / "follow_list.json"
+        elif protocol == "http":
+            return self.public_http_dir / "follow_list.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -99,24 +111,19 @@ class FiluXStorageLayout:
             return self.public_ipfs_dir / "posts" / f"{post_id}.json"
         elif protocol == "usb":
             return self.public_usb_dir / "posts" / f"{post_id}.json"
+        elif protocol == "http":
+            return self.public_http_dir / "posts" / f"{post_id}.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
     def thread_manifest_path(self, thread_id: str, protocol: str = "ipfs") -> Path:
-        """
-        Path to thread manifest file for a specific protocol.
-        
-        Args:
-            thread_id: Thread ID (CID of root post)
-            protocol: "ipfs" or "usb"
-        
-        Returns:
-            Path to thread manifest JSON file
-        """
+        """Path to thread manifest file for a specific protocol"""
         if protocol == "ipfs":
             return self.public_ipfs_dir / "threads" / f"{thread_id}.json"
         elif protocol == "usb":
             return self.public_usb_dir / "threads" / f"{thread_id}.json"
+        elif protocol == "http":
+            return self.public_http_dir / "threads" / f"{thread_id}.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -151,6 +158,8 @@ class FiluXStorageLayout:
             return self.cached_ipfs_dir / "follows" / safe_username / "profile.json"
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "profile.json"
+        elif protocol == "http":
+            return self.cached_http_dir / "follows" / safe_username / "profile.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -161,6 +170,8 @@ class FiluXStorageLayout:
             return self.cached_ipfs_dir / "follows" / safe_username / "Filu-X.json"
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "Filu-X.json"
+        elif protocol == "http":
+            return self.cached_http_dir / "follows" / safe_username / "Filu-X.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -171,6 +182,8 @@ class FiluXStorageLayout:
             return self.cached_ipfs_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"
+        elif protocol == "http":
+            return self.cached_http_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -180,6 +193,8 @@ class FiluXStorageLayout:
             return self.cached_ipfs_dir / "follows"
         elif protocol == "usb":
             return self.cached_usb_dir / "follows"
+        elif protocol == "http":
+            return self.cached_http_dir / "follows"  # UUSI
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -199,34 +214,18 @@ class FiluXStorageLayout:
         return self.cached_threads_dir / f"{thread_id}.json"
     
     def thread_ipns_path(self, thread_id: str) -> Path:
-        """
-        Path to file storing thread's IPNS name.
-        
-        Args:
-            thread_id: Thread ID
-        
-        Returns:
-            Path to text file containing IPNS name
-        """
+        """Path to file storing thread's IPNS name"""
         return self.cached_threads_dir / f"{thread_id}_ipns.txt"
     
     def thread_ipns_name(self, thread_id: str) -> Optional[str]:
-        """
-        Get thread's IPNS name from cache if exists.
-        
-        Args:
-            thread_id: Thread ID
-        
-        Returns:
-            IPNS name or None
-        """
+        """Get thread's IPNS name from cache if exists"""
         path = self.thread_ipns_path(thread_id)
         if path.exists():
             return path.read_text().strip()
         return None
     
     def save_thread_ipns(self, thread_id: str, ipns_name: str):
-        """Save thread's IPNS name to cache."""
+        """Save thread's IPNS name to cache"""
         path = self.thread_ipns_path(thread_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(ipns_name)
@@ -234,102 +233,64 @@ class FiluXStorageLayout:
     # ========== PRIVATE PATHS ==========
     
     def private_config_path(self) -> Path:
-        """Path to private configuration JSON"""
         return self.private_dir / "private_config.json"
     
     def private_key_path(self) -> Path:
-        """Path to Ed25519 private key"""
         return self.private_dir / "keys" / "ed25519_private.pem"
     
     def public_key_path(self) -> Path:
-        """Path to Ed25519 public key"""
         return self.private_dir / "keys" / "ed25519_public.pem"
     
     # ========== PROTOCOL SYNC OPERATIONS ==========
     
     def sync_to_protocol(self, protocol: str = "usb"):
-        """
-        Copy all public files from ipfs to another protocol (e.g., usb)
-        
-        For blob files, creates symbolic links by default.
-        Use copy_blobs=True to copy actual files instead of symlinks.
-        """
+        """Copy all public files from ipfs to another protocol"""
         source = self.public_ipfs_dir
-        target = self.public_usb_dir if protocol == "usb" else self.public_ipfs_dir
+        
+        if protocol == "usb":
+            target = self.public_usb_dir
+        elif protocol == "http":
+            target = self.public_http_dir  # UUSI
+        else:
+            raise ValueError(f"Unknown target protocol: {protocol}")
         
         if not source.exists():
             return
         
-        # Copy all files recursively
         shutil.copytree(source, target, dirs_exist_ok=True)
-        
-        # For blobs, we could create symlinks instead of copies
-        blobs_target = target / "blobs"
-        if blobs_target.exists():
-            shutil.rmtree(blobs_target)
-        
-        # Create symlinks to actual blob files
-        blobs_target.mkdir(parents=True, exist_ok=True)
-        for blob_type_dir in [self.blobs_videos_dir, self.blobs_images_dir, 
-                              self.blobs_audio_dir, self.blobs_other_dir]:
-            if blob_type_dir.exists():
-                for subdir in blob_type_dir.glob("*"):
-                    if subdir.is_dir():
-                        for blob_file in subdir.glob("*"):
-                            rel_path = blob_file.relative_to(self.blobs_dir)
-                            link_path = blobs_target / rel_path
-                            link_path.parent.mkdir(parents=True, exist_ok=True)
-                            if not link_path.exists():
-                                os.symlink(blob_file, link_path)
+        print(f"✅ Files copied to {protocol} directory: {target}")
     
     def sync_from_protocol(self, username: str, protocol: str = "usb", copy_blobs: bool = False):
-        """
-        Copy cached files from protocol cache to main cache
+        """Copy cached files from protocol cache to main cache"""
+        if protocol == "usb":
+            source_base = self.cached_usb_dir
+        elif protocol == "http":
+            source_base = self.cached_http_dir  # UUSI
+        else:
+            source_base = self.cached_ipfs_dir
         
-        Args:
-            username: Username to sync
-            protocol: Source protocol ("usb" or "ipfs")
-            copy_blobs: If True, copy blob files; if False, create symlinks
-        """
-        source_base = self.cached_usb_dir if protocol == "usb" else self.cached_ipfs_dir
         source = source_base / "follows" / self._sanitize_username(username)
         target = self.cached_ipfs_dir / "follows" / self._sanitize_username(username)
         
         if not source.exists():
             return
         
-        # Copy all files recursively
         shutil.copytree(source, target, dirs_exist_ok=True)
-        
-        # Handle blobs if present
-        source_blobs = source / "blobs"
-        target_blobs = target / "blobs"
-        
-        if source_blobs.exists() and target_blobs.exists():
-            if copy_blobs:
-                # Copy actual blob files
-                shutil.copytree(source_blobs, target_blobs, dirs_exist_ok=True)
-            else:
-                # Create symlinks to blob files in main blob storage
-                for blob_file in source_blobs.rglob("*"):
-                    if blob_file.is_file():
-                        # Extract blob_cid from path
-                        # Assuming path like: .../blobs/videos/ab/abc123...
-                        rel_path = blob_file.relative_to(source_blobs)
-                        target_link = target_blobs / rel_path
-                        target_link.parent.mkdir(parents=True, exist_ok=True)
-                        
-                        # Find actual blob in main blob storage
-                        # This assumes blob storage structure matches
-                        actual_blob = self.blobs_dir / rel_path
-                        if actual_blob.exists() and not target_link.exists():
-                            os.symlink(actual_blob, target_link)
+        print(f"✅ Files copied from {protocol} cache: {source} → {target}")
     
     # ========== UTILITY METHODS ==========
     
     def list_cached_users(self, protocol: str = "ipfs") -> List[str]:
         """List all usernames that have cached content from specific protocol"""
-        cache_dir = self.cached_ipfs_dir if protocol == "ipfs" else self.cached_usb_dir
+        if protocol == "ipfs":
+            cache_dir = self.cached_ipfs_dir
+        elif protocol == "usb":
+            cache_dir = self.cached_usb_dir
+        elif protocol == "http":
+            cache_dir = self.cached_http_dir  # UUSI
+        else:
+            return []
+        
         follows_dir = cache_dir / "follows"
         if not follows_dir.exists():
             return []
@@ -337,14 +298,30 @@ class FiluXStorageLayout:
     
     def list_own_posts(self, protocol: str = "ipfs") -> List[Path]:
         """List all own post files"""
-        posts_dir = self.public_ipfs_dir / "posts" if protocol == "ipfs" else self.public_usb_dir / "posts"
+        if protocol == "ipfs":
+            posts_dir = self.public_ipfs_dir / "posts"
+        elif protocol == "usb":
+            posts_dir = self.public_usb_dir / "posts"
+        elif protocol == "http":
+            posts_dir = self.public_http_dir / "posts"  # UUSI
+        else:
+            return []
+        
         if not posts_dir.exists():
             return []
         return sorted(posts_dir.glob("*.json"), reverse=True)
     
     def list_threads(self, protocol: str = "ipfs") -> List[str]:
         """List all thread manifest IDs"""
-        threads_dir = self.public_ipfs_dir / "threads" if protocol == "ipfs" else self.public_usb_dir / "threads"
+        if protocol == "ipfs":
+            threads_dir = self.public_ipfs_dir / "threads"
+        elif protocol == "usb":
+            threads_dir = self.public_usb_dir / "threads"
+        elif protocol == "http":
+            threads_dir = self.public_http_dir / "threads"  # UUSI
+        else:
+            return []
+        
         if not threads_dir.exists():
             return []
         return [f.stem for f in threads_dir.glob("*.json")]
@@ -354,29 +331,25 @@ class FiluXStorageLayout:
         total = 0
         if self.base_path.exists():
             for path in self.base_path.rglob("*"):
-                if path.is_file() and not path.is_symlink():  # Don't count symlinks twice
+                if path.is_file() and not path.is_symlink():
                     total += path.stat().st_size
         return total
     
     # ========== JSON UTILITIES ==========
     
     def load_json(self, path: Path) -> dict:
-        """Load JSON file safely"""
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     
     def save_json(self, path: Path, data: dict, private: bool = False):
-        """Save dictionary as JSON file"""
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     
     def file_exists(self, path: Path) -> bool:
-        """Check if file exists"""
         return path.exists()
     
     def __str__(self) -> str:
-        """String representation"""
         return f"FiluXStorageLayout(base_path={self.base_path})"

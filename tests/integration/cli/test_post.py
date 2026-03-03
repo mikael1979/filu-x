@@ -1,16 +1,14 @@
-# tests/test_post.py
+# tests/integration/cli/test_post.py
 import pytest
 import json
 import re
-from pathlib import Path
 from click.testing import CliRunner
 from filu_x.cli import cli
 
 class TestPostCommand:
-    def test_create_simple_post(self, initialized_user):
+    def test_create_simple_post(self, user, runner):
         """Test creating a simple post with local ID"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         result = runner.invoke(cli, [
             '--data-dir', str(data_dir),
@@ -38,10 +36,9 @@ class TestPostCommand:
         # Check that version is from manifest (should be 0_0_0_0 for first post)
         assert "0_0_0_0" in local_id
 
-    def test_create_thread_post(self, initialized_user):
+    def test_create_thread_post(self, user, runner):
         """Test creating a thread post with title generates correct local ID"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         result = runner.invoke(cli, [
             '--data-dir', str(data_dir),
@@ -50,17 +47,23 @@ class TestPostCommand:
             '--description', 'Testing threads'
         ])
 
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"CLI failed: {result.output}"
 
         # Verify post
         posts_dir = data_dir / "public" / "ipfs" / "posts"
         posts = list(posts_dir.glob("*.json"))
-        assert len(posts) == 1
+        assert len(posts) == 1, "No post file created"
 
         with open(posts[0]) as f:
             post_data = json.load(f)
 
+        # Debug output if needed
+        if "post_type" not in post_data:
+            print(f"DEBUG: post_data keys: {list(post_data.keys())}")
+            print(f"DEBUG: full post_data: {json.dumps(post_data, indent=2)}")
+
         # Check thread properties
+        assert "post_type" in post_data, "Missing post_type field"
         assert post_data["post_type"] == "thread"
         assert post_data["thread_title"] == "Test Thread"
         assert post_data["thread_description"] == "Testing threads"
@@ -71,10 +74,9 @@ class TestPostCommand:
         assert "0_0_0_0" in local_id  # manifest version
         assert re.search(r'[a-f0-9]{6}$', local_id)  # hash fingerprint at the end
 
-    def test_create_post_with_custom_local_id(self, initialized_user):
+    def test_create_post_with_custom_local_id(self, user, runner):
         """Test creating a post with custom local ID after other posts exist"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         # Create first post (auto-numbered)
         result1 = runner.invoke(cli, [
@@ -128,10 +130,9 @@ class TestPostCommand:
         assert post1_data["local_id"].startswith("post1.")
         assert post2_data["local_id"].startswith("post2.")
 
-    def test_multiple_posts_increment_numbers(self, initialized_user):
+    def test_multiple_posts_increment_numbers(self, user, runner):
         """Test that post numbers increment correctly"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         # Create first post
         result1 = runner.invoke(cli, ['--data-dir', str(data_dir), 'post', 'First post'])
@@ -160,10 +161,9 @@ class TestPostCommand:
         assert post1["local_id"].startswith("post1.")
         assert post2["local_id"].startswith("post2.")
 
-    def test_local_mapping_file_created(self, initialized_user):
+    def test_local_mapping_file_created(self, user, runner):
         """Test that mapping.json is created with correct entries"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         # Create a post
         runner.invoke(cli, ['--data-dir', str(data_dir), 'post', 'Test mapping'])
@@ -187,10 +187,9 @@ class TestPostCommand:
         assert "post_type" in entry
         assert entry["post_type"] == "simple"
 
-    def test_local_file_created(self, initialized_user):
+    def test_local_file_created(self, user, runner):
         """Test that post is also saved in local/posts/ directory"""
-        runner = CliRunner()
-        data_dir = initialized_user["data_dir"]
+        data_dir = user["data_dir"]
 
         # Create a post
         result = runner.invoke(cli, ['--data-dir', str(data_dir), 'post', 'Test local copy'])

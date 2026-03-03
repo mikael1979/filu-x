@@ -1,5 +1,3 @@
-
-```markdown
 # Filu-X Development Roadmap
 
 ## Alpha Phase (0.0.x)
@@ -50,7 +48,7 @@
 - [x] Reaction rendering in feed with icons
 
 #### Reposts
-- [x] `filu-x repost <cid>` command
+- [x] `filu-x repost &lt;cid&gt;` command
 - [x] Optional comment with repost
 - [x] `type: "repost"` in post schema
 - [x] Feed rendering with 🔁 icon
@@ -137,7 +135,57 @@
 - [x] Updated TODO with completed items
 - [x] Command examples for thread usage
 
-### 0.0.8 – Planned (Next)
+### 0.0.8 – Code Quality & Testing 🚧 (IN PROGRESS)
+
+#### Testing Infrastructure
+- [ ] **Unit tests for core modules**
+  - [ ] `test_crypto.py` – Ed25519 signing/verification
+  - [ ] `test_id_generator.py` – deterministic ID generation
+  - [ ] `test_resolver.py` – link parsing and content resolution
+  - [ ] `test_layout.py` – storage layout and path management
+  - [ ] `test_thread_manifest.py` – thread manifest operations
+
+- [ ] **Integration tests**
+  - [ ] End-to-end post creation flow
+  - [ ] Thread creation and reply chain
+  - [ ] Sync and resolve workflow
+  - [ ] Follow/unfollow user flow
+
+- [ ] **Test fixtures and mocks**
+  - [ ] Mock IPFS client for testing
+  - [ ] Sample post/profile data fixtures
+  - [ ] Temporary directory management
+
+#### Code Quality
+- [ ] **Remove debug output**
+  - [ ] Replace `print()` with proper logging
+  - [ ] Add `--debug` flag for verbose output
+  - [ ] Clean up `feed.py` debug prints
+
+- [ ] **Fix version number inconsistencies**
+  - [ ] Update `__init__.py`: `__version__ = "0.0.7"`
+  - [ ] Update `cli/__init__.py`: `version="0.0.7"`
+  - [ ] Update `pyproject.toml` version
+  - [ ] Add version consistency check to CI
+
+- [ ] **Refactor large modules**
+  - [ ] Split `thread.py` into smaller files
+  - [ ] Move `ThreadManifest` to `core/thread_manifest.py`
+  - [ ] Move `ThreadManager` to `core/thread_manager.py`
+  - [ ] Separate CLI commands from business logic
+
+- [ ] **Fix circular imports**
+  - [ ] Move shared classes to `core/` directory
+  - [ ] Use lazy imports where necessary
+
+#### Documentation Cleanup
+- [ ] **Standardize language**
+  - [ ] Translate Finnish comments to English
+  - [ ] Translate French comments to English
+  - [ ] Remove "UUSI", "KORJATTU" markers
+  - [ ] Add proper docstrings to all public functions
+
+### 0.0.9 – Protocol Grouping & JSON Schema 🚧 (IN PROGRESS)
 
 #### Feed Improvements
 - [ ] Thread indicators in feed (show participant count)
@@ -170,6 +218,48 @@
 - [ ] Thread metadata editing (title/description)
 - [ ] Thread pinning
 - [ ] Thread moderation tools
+
+
+
+#### Protocol Restructuring
+- [ ] **Post JSON restructuring** – Group all protocol-specific fields under `protocols` object
+  - [ ] Move `cid` → `protocols.ipfs.cid`
+  - [ ] Move `http_url` → `protocols.http.url`
+  - [ ] Move `ipns`/`thread_ipns` → `protocols.ipns.name` (under ipfs)
+  - [ ] Add `protocols.ipfs.gateway` field
+  - [ ] Add `protocols.http.mirrors` array for multiple HTTP sources
+  - [ ] Prepare structure for future protocols (Nostr, Freenet, etc.)
+
+#### JSON Schema (Optional but Recommended)
+- [ ] **Create schema files** for validation and documentation
+  - [ ] `schemas/post-v0.0.8.json` – Post structure validation
+  - [ ] `schemas/manifest-v0.0.8.json` – Manifest structure
+  - [ ] `schemas/thread_manifest-v0.0.8.json` – Thread manifest structure
+  
+- [ ] **Publish schemas to IPNS** (updateable pointer)
+  - [ ] Create IPNS key: `ipfs key gen --type=ed25519 schemas`
+  - [ ] Publish: `ipfs name publish --key=schemas /ipfs/&lt;cid&gt;`
+  - [ ] Update templates to use: `https://ipfs.io/ipns/&lt;ipns&gt;/post-v0.0.8.json`
+  - [ ] Document schema IPNS in README
+
+- [ ] **Add validation** (optional, can be disabled)
+  - [ ] `filu-x validate &lt;file&gt;` – Validate JSON against schema
+  - [ ] Validate before `sync` (warn if invalid)
+  - [ ] Skip validation with `--no-validate`
+
+#### Migration Tools
+- [ ] **Create migration command**: `filu-x migrate --to-format 0.0.8`
+  - [ ] Convert old flat format to new `protocols` structure
+  - [ ] Preserve all existing data
+  - [ ] Create backup before migration
+  - [ ] Update manifest entries
+
+#### Infrastructure
+- [ ] Update `post.json.j2` template
+- [ ] Update `manifest.json.j2` template  
+- [ ] Update `post.py` to use new structure
+- [ ] Update `resolver.py` to read from `protocols.*`
+- [ ] Update tests for new format
 
 ## Beta Phase (0.1.x) – Next Milestone
 
@@ -214,7 +304,7 @@
 |--------|---------|
 | ✅ | Completed |
 | 🚀 | Current version |
-| 🔄 | In progress |
+| 🚧 | In progress |
 | ⏳ | Planned |
 | 🔐 | Privacy feature |
 | P0 | Critical priority |
