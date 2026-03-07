@@ -1,4 +1,3 @@
-Tämä on nyt erittäin selkeä ja valmis esiteltäväksi! Tein pieniä muotoiluparannuksia ja lisäsin yhden puuttuvan elementin:
 
 ---
 
