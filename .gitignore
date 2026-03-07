@@ -28,3 +28,32 @@ venv/
 
 # CID tracker
 cid_history.json
+
+# Temporary test files
+*.json
+!src/filu_x/templates/*.json
+!src/filu_x/templates/*.json.j2
+post*.json
+thread-root.json
+
+# Test data directories (varmuudeksi)
+test-data/
+test_data/
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+*.cover
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
