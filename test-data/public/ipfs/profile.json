@@ -1,0 +1,18 @@
+{
+  "$schema": "https://filu-x.org/schemas/profile-v0.0.6.json",
+  "version": "0.0.6",
+  "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+  "display_name": "@testuser",
+  "display_name_normalized": "testuser",
+  "author": "@testuser",
+  "profile_ipns": "k51qzi5uqu5c43fcc7c4870fc8db86a596d1e2106a2f8a8d0e2p",
+  "manifest_ipns": "k51qzi5uqu5c43fcc7c4870fc8db86a596d1e2106a2f8a8d0e2m",
+  "threads_ipns": {},
+  "bio": "",
+  "avatar_url": "",
+  "created_at": "2026-03-07T19:38:13.135811Z",
+  "updated_at": "2026-03-07T19:38:14.590407Z",
+  "access_points": [],
+  "signature": "c430d7ff2e91c6b94036868eebdf457c2b4f8ce71113c3d16d43373965d248353396a7234e8a228b00cbbb2d8bb0a2e5c342e38f673eaa12de5bbcd183ff790b",
+  "manifest_cid": "bafkreiaqzoforngllizhr7gk4lpydemvgzuw2xmgnasgzhna7uro4bct3y"
+}

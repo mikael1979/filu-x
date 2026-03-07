@@ -27,13 +27,13 @@ class FiluXStorageLayout:
         self.public_dir = self.base_path / "public"
         self.public_ipfs_dir = self.public_dir / "ipfs"
         self.public_usb_dir = self.public_dir / "usb"
-        self.public_http_dir = self.public_dir / "http"  # UUSI: HTTP-protokolla
+        self.public_http_dir = self.public_dir / "http"  # HTTP protocol
         
         # Cached (organized by protocol and user)
         self.cached_dir = self.base_path / "cached"
         self.cached_ipfs_dir = self.cached_dir / "ipfs"
         self.cached_usb_dir = self.cached_dir / "usb"
-        self.cached_http_dir = self.cached_dir / "http"  # UUSI: HTTP-välimuisti
+        self.cached_http_dir = self.cached_dir / "http"  # HTTP cache
         self.cached_threads_dir = self.cached_dir / "threads"
         
         # Blobs for large files (images, videos, etc.)
@@ -56,12 +56,12 @@ class FiluXStorageLayout:
             self.public_usb_dir / "posts",
             self.public_usb_dir / "blobs",
             self.public_usb_dir / "threads",
-            self.public_http_dir / "posts",      # UUSI: HTTP posts
-            self.public_http_dir / "blobs",       # UUSI: HTTP blobs
-            self.public_http_dir / "threads",     # UUSI: HTTP threads
+            self.public_http_dir / "posts",      # HTTP posts
+            self.public_http_dir / "blobs",       # HTTP blobs
+            self.public_http_dir / "threads",     # HTTP threads
             self.cached_ipfs_dir / "follows",
             self.cached_usb_dir / "follows",
-            self.cached_http_dir / "follows",     # UUSI: HTTP cache
+            self.cached_http_dir / "follows",     # HTTP cache
             self.cached_threads_dir,
             self.blobs_videos_dir,
             self.blobs_images_dir,
@@ -79,7 +79,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.public_usb_dir / "profile.json"
         elif protocol == "http":
-            return self.public_http_dir / "profile.json"  # UUSI
+            return self.public_http_dir / "profile.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -90,7 +90,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.public_usb_dir / "Filu-X.json"
         elif protocol == "http":
-            return self.public_http_dir / "Filu-X.json"  # UUSI
+            return self.public_http_dir / "Filu-X.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -101,7 +101,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.public_usb_dir / "follow_list.json"
         elif protocol == "http":
-            return self.public_http_dir / "follow_list.json"  # UUSI
+            return self.public_http_dir / "follow_list.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -112,7 +112,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.public_usb_dir / "posts" / f"{post_id}.json"
         elif protocol == "http":
-            return self.public_http_dir / "posts" / f"{post_id}.json"  # UUSI
+            return self.public_http_dir / "posts" / f"{post_id}.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -123,7 +123,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.public_usb_dir / "threads" / f"{thread_id}.json"
         elif protocol == "http":
-            return self.public_http_dir / "threads" / f"{thread_id}.json"  # UUSI
+            return self.public_http_dir / "threads" / f"{thread_id}.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -159,7 +159,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "profile.json"
         elif protocol == "http":
-            return self.cached_http_dir / "follows" / safe_username / "profile.json"  # UUSI
+            return self.cached_http_dir / "follows" / safe_username / "profile.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -171,7 +171,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "Filu-X.json"
         elif protocol == "http":
-            return self.cached_http_dir / "follows" / safe_username / "Filu-X.json"  # UUSI
+            return self.cached_http_dir / "follows" / safe_username / "Filu-X.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -183,7 +183,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.cached_usb_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"
         elif protocol == "http":
-            return self.cached_http_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"  # UUSI
+            return self.cached_http_dir / "follows" / safe_username / "posts" / f"{post_cid}.json"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -194,7 +194,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             return self.cached_usb_dir / "follows"
         elif protocol == "http":
-            return self.cached_http_dir / "follows"  # UUSI
+            return self.cached_http_dir / "follows"
         else:
             raise ValueError(f"Unknown protocol: {protocol}")
     
@@ -250,7 +250,7 @@ class FiluXStorageLayout:
         if protocol == "usb":
             target = self.public_usb_dir
         elif protocol == "http":
-            target = self.public_http_dir  # UUSI
+            target = self.public_http_dir
         else:
             raise ValueError(f"Unknown target protocol: {protocol}")
         
@@ -265,7 +265,7 @@ class FiluXStorageLayout:
         if protocol == "usb":
             source_base = self.cached_usb_dir
         elif protocol == "http":
-            source_base = self.cached_http_dir  # UUSI
+            source_base = self.cached_http_dir
         else:
             source_base = self.cached_ipfs_dir
         
@@ -287,7 +287,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             cache_dir = self.cached_usb_dir
         elif protocol == "http":
-            cache_dir = self.cached_http_dir  # UUSI
+            cache_dir = self.cached_http_dir
         else:
             return []
         
@@ -303,7 +303,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             posts_dir = self.public_usb_dir / "posts"
         elif protocol == "http":
-            posts_dir = self.public_http_dir / "posts"  # UUSI
+            posts_dir = self.public_http_dir / "posts"
         else:
             return []
         
@@ -318,7 +318,7 @@ class FiluXStorageLayout:
         elif protocol == "usb":
             threads_dir = self.public_usb_dir / "threads"
         elif protocol == "http":
-            threads_dir = self.public_http_dir / "threads"  # UUSI
+            threads_dir = self.public_http_dir / "threads"
         else:
             return []
         

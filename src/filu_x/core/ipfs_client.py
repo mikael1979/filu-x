@@ -25,7 +25,7 @@ class IPFSClient:
         self.cache_dir = cache_dir or Path.home() / ".cache" / "filu-x" / "ipfs_mock"
         self.use_real = False
         
-        # Testaa yhteys IPFS daemoniin
+        # Test connection to IPFS daemon
         if mode in ["auto", "real"]:
             try:
                 response = requests.post(
@@ -54,7 +54,7 @@ class IPFSClient:
                     f"{self.api_url}/add",
                     files=files,
                     params={"cid-version": 1, "pin": True},
-                    timeout=self.timeout * 2  # Lisää aikaa suurelle sisällölle
+                    timeout=self.timeout * 2  # More time for large content
                 )
                 response.raise_for_status()
                 result = response.json()

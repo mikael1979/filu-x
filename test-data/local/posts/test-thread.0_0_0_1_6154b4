@@ -1,0 +1,59 @@
+{
+  "$schema": "https://filu-x.org/schemas/post-v0.0.8.json",
+  "version": "0.0.8",
+  "id": "6154b43ccbd47c0ad28ee379cab33c33",
+  "local_id": "test-thread.0_0_0_1_6154b4",
+  "author": "@testuser",
+  "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+  "post_type": "thread",
+  "content": "Thread root",
+  "protocols": {
+    "ipfs": {
+      "cid": null,
+      "gateway": "https://ipfs.io/ipfs/",
+      "ipns": {
+        "name": "k51qzi5uqu5c43fcc7c4870fc8db86a596d1e2106a2f8a8d0e2t6154b43c",
+        "gateway": "https://ipfs.io/ipns/",
+        "sequence": 0,
+        "previous": null
+      }
+    },
+    "http": {
+      "primary": null,
+      "mirrors": [],
+      "last_checked": null
+    },
+    "nostr": {
+      "event_id": null,
+      "relay": null,
+      "kind": 1,
+      "tags": []
+    },
+    "freenet": {
+      "uri": null,
+      "key": null,
+      "edition": 0
+    },
+    "hypercore": {
+      "key": null,
+      "seq": 0
+    },
+    "activitypub": {
+      "uri": null,
+      "type": "Note",
+      "inbox": null
+    }
+  },
+  "attachments": [],
+  "prev_post_cid": null,
+  "tags": [],
+  "thread_title": "Test Thread",
+  "thread_description": "",
+  "thread_id": "6154b43ccbd47c0ad28ee379cab33c33",
+  "reply_to": "null",
+  "participants": [],
+  "reply_count": 0,
+  "created_at": "2026-03-07T19:42:52.209452Z",
+  "updated_at": "2026-03-07T19:42:52.209452Z",
+  "signature": "e4057fb6af9a5d09807d828efdc86bd84fdbfeaede273408e47718ea67e004d589dd2db5d01f1c8a3c56c86321ae054d1558c5423eac7971b05e9bd5fe756a00"
+}

@@ -10,7 +10,7 @@ import click
 from filu_x.storage.layout import FiluXStorageLayout
 from filu_x.core.resolver import LinkResolver, ResolutionError, SecurityError
 from filu_x.core.ipfs_client import IPFSClient
-from filu_x.cli.commands.thread import ThreadManifest  # UUSI
+from filu_x.cli.commands.thread import ThreadManifest
 
 def is_deterministic_id(cid: str) -> bool:
     """Check if string is a 32-char hex deterministic ID"""
@@ -74,7 +74,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
             click.echo(f"\n👤 Syncing {user}...")
         
         try:
-            # ========== DETERMINE PROFILE IDENTIFIER ==========
+            # Determine profile identifier
             profile_ipns = follow.get("profile_ipns")
             profile_cid = follow.get("profile_cid")
             profile_identifier = None
@@ -97,7 +97,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
             else:
                 raise ResolutionError(f"No valid profile identifier for {user}")
             
-            # ========== FETCH FRESH PROFILE ==========
+            # Fetch fresh profile
             if verbose:
                 click.echo(f"   📥 Fetching fresh profile using {identifier_type}...")
             
@@ -110,7 +110,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                 if not click.confirm("Continue?"):
                     continue
             
-            # ========== GET MANIFEST VIA IPNS ==========
+            # Get manifest via IPNS
             manifest_ipns = profile_data.get("manifest_ipns")
             if not manifest_ipns:
                 click.echo(click.style(f"   ❌ No manifest_ipns in profile", fg="red"))
@@ -167,7 +167,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                 if len(entries) == 0 and verbose:
                     click.echo(f"   ⚠️  WARNING: Manifest has 0 entries!")
             
-            # ========== CACHE MANIFEST ==========
+            # Cache manifest
             cached_dir = layout.cached_user_dir(current_author, protocol="ipfs")
             cached_dir.mkdir(parents=True, exist_ok=True)
             
@@ -187,7 +187,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
             last_sync_path = cached_dir / "last_sync.txt"
             last_sync_path.write_text(datetime.now(timezone.utc).isoformat())
             
-            # ========== PROCESS POSTS ==========
+            # Process posts
             posts = [e for e in manifest_data.get("entries", []) 
                     if e.get("type") in ["post", "repost", "vote", "reaction", "rating"]]
             
@@ -198,11 +198,10 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
             
             # Get list of already cached posts
             cached_posts = set()
-            thread_ids_seen = set()  # Track threads we've processed
+            thread_ids_seen = set()
             if posts_dir.exists():
                 for f in posts_dir.glob("*.json"):
                     cached_posts.add(f.stem)
-                    # Also try to read thread_id from cached post
                     try:
                         with open(f, 'r') as pf:
                             post_data = json.load(pf)
@@ -216,7 +215,7 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
             
             new_count = 0
             total_posts = len(posts)
-            thread_posts_to_fetch = {}  # thread_id -> list of post data
+            thread_posts_to_fetch = {}
             
             for idx, post_entry in enumerate(posts[:limit]):
                 post_cid = post_entry.get("cid")
@@ -246,12 +245,11 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                         click.echo(f"   ℹ️  Already cached: {post_cid[:16]}...")
                     continue
                 
-                # For deterministic IDs, we need to check if they're in IPFS
+                # For deterministic IDs, check if they're in IPFS
                 if det_id:
                     if verbose:
                         click.echo(f"   ⚠️  Note: {post_cid[:16]}... is a local ID - ask {current_author} to run 'filu-x sync'")
                     
-                    # Try to resolve as IPFS CID (might work if synced)
                     try:
                         post_content = resolver.resolve_content(post_cid, skip_cache=False)
                         post_path = posts_dir / f"{post_cid}.json"
@@ -260,7 +258,6 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                         total_new += 1
                         cached_posts.add(post_cid)
                         
-                        # Store for thread manifest processing
                         if threads and post_content.get("thread_id"):
                             thread_id = post_content["thread_id"]
                             if thread_id not in thread_posts_to_fetch:
@@ -273,7 +270,6 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                                 preview += "..."
                             click.echo(f"   ✅ Cached: {preview}")
                     except Exception:
-                        # Expected - deterministic IDs need sync first
                         continue
                 
                 elif ipfs_cid:
@@ -285,7 +281,6 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                         total_new += 1
                         cached_posts.add(post_cid)
                         
-                        # Store for thread manifest processing
                         if threads and post_content.get("thread_id"):
                             thread_id = post_content["thread_id"]
                             if thread_id not in thread_posts_to_fetch:
@@ -302,17 +297,15 @@ def sync_followed(ctx, limit: int, verbose: bool, allow_unverified: bool, wait: 
                         if verbose:
                             click.echo(f"   ⚠️  Failed to fetch: {e}")
             
-            # ========== PROCESS THREAD MANIFESTS ==========
+            # Process thread manifests
             if threads and thread_posts_to_fetch:
                 if verbose:
                     click.echo(f"   📋 Processing {len(thread_posts_to_fetch)} thread manifests...")
                 
                 for thread_id, thread_posts in thread_posts_to_fetch.items():
                     try:
-                        # Get or create thread manifest
                         thread_manifest = ThreadManifest(layout, thread_id)
                         
-                        # Add all posts to thread manifest
                         for post_content in thread_posts:
                             thread_manifest.add_post(post_content)
                         

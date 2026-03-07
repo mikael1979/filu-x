@@ -1,4 +1,4 @@
-"""Initialize a new Filu-X user with IPNS support (no manifest_cid)"""
+"""Initialize a new Filu-X user with IPNS support"""
 import sys
 import getpass
 from pathlib import Path
@@ -67,7 +67,7 @@ def init(ctx, username: str, no_password: bool):
     with open(layout.public_key_path(), "wb") as f:
         f.write(pub_key_bytes)
     
-    # Save private key (unencrypted for alpha)
+    # Save private key
     if password:
         from filu_x.core.crypto import encrypt_with_scrypt
         encrypted = encrypt_with_scrypt(priv_key_bytes, password)
@@ -77,7 +77,7 @@ def init(ctx, username: str, no_password: bool):
         with open(layout.private_key_path(), "wb") as f:
             f.write(priv_key_bytes)
     
-    # ========== CREATE IPNS NAMES ==========
+    # Create IPNS names
     ipns = IPNSManager(use_mock=True)  # Alpha uses mock mode
     ipfs_client = IPFSClient(mode="auto")
     
@@ -94,7 +94,6 @@ def init(ctx, username: str, no_password: bool):
         click.echo(click.style(f"⚠️  Could not create IPNS names: {e}", fg="yellow"))
         profile_ipns = ""
         manifest_ipns = ""
-    # ========================================
     
     # Create templates
     engine = TemplateEngine()
@@ -103,7 +102,7 @@ def init(ctx, username: str, no_password: bool):
     # Create empty manifest first with version 1
     manifest = engine.render_manifest({
         "version": "0.0.6",
-        "manifest_version": 1,  # Aloitetaan versiosta 1
+        "manifest_version": 1,  # Start from version 1
         "username": username,
         "pubkey": pub_key_bytes.hex(),
         "now_iso8601": now,
@@ -129,15 +128,12 @@ def init(ctx, username: str, no_password: bool):
     profile_cid = ipfs_client.add_file(layout.profile_path())
     click.echo(click.style(f"   📦 Profile CID: {profile_cid[:16]}...", fg="blue"))
     
-    # ========== PUBLISH TO IPNS ==========
-    # Publish profile to its IPNS name
+    # Publish to IPNS
     if profile_ipns:
         ipns.publish(layout.profile_path(), profile_ipns)
         
-    # Publish manifest to its IPNS name
     if manifest_ipns:
         ipns.publish(layout.manifest_path(), manifest_ipns)
-    # ======================================
     
     # Private config
     private_config = engine.render_private_config({

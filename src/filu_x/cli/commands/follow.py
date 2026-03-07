@@ -101,12 +101,12 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
             pubkey = profile_data.get("pubkey", "")
             pubkey_preview = pubkey[:12] + "..." if pubkey else "unknown"
             
-            # ========== CRITICAL: Get IPNS names from profile ==========
+            # Get IPNS names from profile
             profile_ipns = profile_data.get("profile_ipns", "")
             manifest_ipns = profile_data.get("manifest_ipns", "")
             
-            # Debug output to verify we got the IPNS names
-            if verbose or True:  # Always show this for now
+            # Debug output
+            if verbose:
                 if profile_ipns:
                     click.echo(click.style(f"   ✅ Found Profile IPNS: {profile_ipns[:16]}...", fg="green"))
                 else:
@@ -114,9 +114,8 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
                     
                 if manifest_ipns:
                     click.echo(click.style(f"   ✅ Found Manifest IPNS: {manifest_ipns[:16]}...", fg="green"))
-            # ===========================================================
             
-            # ✅ COLLISION DETECTION
+            # Collision detection
             follow_list_path = layout.follow_list_path()
             existing_follows = []
             if follow_list_path.exists():
@@ -202,7 +201,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
         ))
         sys.exit(0)
     
-    # ========== Save follow entry with ALL identifiers ==========
+    # Save follow entry with ALL identifiers
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
     follow_entry = {
@@ -219,7 +218,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
     }
     
     # Debug: show what we're saving
-    if verbose or True:
+    if verbose:
         click.echo(click.style("\n📝 Saving follow entry:", fg="cyan"))
         click.echo(f"   • User: {follow_entry['user']}")
         click.echo(f"   • Profile IPNS: {follow_entry['profile_ipns'][:16] if follow_entry['profile_ipns'] else 'None'}")
@@ -235,8 +234,7 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
     # Save
     layout.save_json(follow_list_path, follow_list, private=False)
     
-    # ========== OPTIONAL: Cache profile immediately ==========
-    # KORJATTU: Käytä layout-metodia
+    # Optional: Cache profile immediately
     if profile_data:
         try:
             cached_dir = layout.cached_user_dir(author, protocol="ipfs")
@@ -257,7 +255,6 @@ def follow(ctx, target: str, alias: str = None, force: bool = False, verbose: bo
         except Exception as e:
             if verbose:
                 click.echo(click.style(f"   ⚠️  Could not cache profile: {e}", fg="yellow"))
-    # =========================================================
     
     # 6. Show result
     display_name = alias or author

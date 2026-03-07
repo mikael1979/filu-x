@@ -124,7 +124,7 @@ class IPNSManager:
             # This ensures that even unmapped IPNS names return something
             fallback_cid = f"bafkrei{hashlib.sha256(ipns_name.encode()).hexdigest()[:40]}"
             
-            # But log a warning because this indicates a problem
+            # Log a warning because this indicates a problem
             click.echo(click.style(
                 f"   ⚠️  IPNS name {ipns_name[:16]}... not found in mock DB, using fallback",
                 fg="yellow"

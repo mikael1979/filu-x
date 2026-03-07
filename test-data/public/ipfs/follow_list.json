@@ -1,0 +1,9 @@
+{
+  "$schema": "https://filu-x.org/schemas/follow_list-v0.0.6.json",
+  "version": "0.0.6",
+  "author": "@testuser",
+  "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+  "follows": [],
+  "updated_at": "2026-03-07T19:38:13.135811Z",
+  "signature": "0424b38e181176dad2c12584b3f451f95d1c8386e9eeef84170b3e22ee2a634bf5c2b5d505fbbba12b744d26181034dc90307ed280f8a0c41c54a1e47352990d"
+}

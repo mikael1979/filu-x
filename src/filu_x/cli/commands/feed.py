@@ -11,6 +11,13 @@ from filu_x.core.id_generator import normalize_display_name
 def render_post_item(post: dict, all_posts: list) -> str:
     """
     Render a single post with proper type indicators and thread info.
+    
+    Args:
+        post: Post data dictionary
+        all_posts: List of all posts (for collision detection)
+    
+    Returns:
+        Formatted post string
     """
     author = post["author"]
     normalized = post["author_normalized"]
@@ -64,8 +71,8 @@ def render_post_item(post: dict, all_posts: list) -> str:
     if content:
         lines.append(f"  {content}")
     
-    # Thread indicator
-    if thread_id:
+    # Thread indicator - only show if thread_id exists and is not null/None
+    if thread_id and thread_id.lower() != "null" and str(thread_id).strip():
         participant_count = len(participants) if participants else 1
         if reply_count > 0:
             lines.append(f"  💬 Thread ({participant_count} participants, {reply_count} replies)")
@@ -82,31 +89,26 @@ def render_post_item(post: dict, all_posts: list) -> str:
 def collect_posts(layout, limit: int) -> list:
     """
     Collect own posts + cached followed posts chronologically.
-    Now includes reaction types and thread info.
+    
+    Args:
+        layout: Storage layout instance
+        limit: Maximum number of posts to return
+    
+    Returns:
+        List of post entries sorted by date (newest first)
     """
     posts = []
-    
-    # ========== DEBUG: Tarkista polut ==========
-    print(f"\n🔍 DEBUG: collect_posts alkaa")
-    print(f"   layout.base_path = {layout.base_path}")
-    print(f"   layout.public_ipfs_dir = {layout.public_ipfs_dir}")
-    print(f"   layout.public_ipfs_dir.exists() = {layout.public_ipfs_dir.exists()}")
-    # ===========================================
     
     # Collect own posts from IPFS protocol
     if layout.public_ipfs_dir.exists():
         posts_dir = layout.public_ipfs_dir / "posts"
-        print(f"\n📁 Tarkistetaan omat postaukset: {posts_dir}")
-        print(f"   posts_dir.exists() = {posts_dir.exists()}")
         
         if posts_dir.exists():
             post_files = sorted(posts_dir.glob("*.json"), reverse=True)
-            print(f"   Löytyi {len(post_files)} omaa postausta")
             
-            for i, post_path in enumerate(post_files):
+            for post_path in post_files:
                 try:
                     post = layout.load_json(post_path)
-                    print(f"   ✅ Luettu oma postaus {i+1}: {post_path.name}")
                     
                     post_entry = {
                         "author": post.get("author", "unknown"),
@@ -131,41 +133,26 @@ def collect_posts(layout, limit: int) -> list:
                     posts.append(post_entry)
                     
                 except Exception as e:
-                    print(f"   ⚠️ Virhe luettaessa {post_path.name}: {e}")
+                    # Silently skip corrupted posts
                     continue
-        else:
-            print("   ⚠️ posts_dir ei ole olemassa")
-    else:
-        print("   ⚠️ public_ipfs_dir ei ole olemassa")
     
     # Collect cached followed posts from IPFS cache
     cached_follows_dir = layout.base_path / "data" / "cached" / "ipfs" / "follows"
-    print(f"\n📁 Tarkistetaan cached-follows: {cached_follows_dir}")
-    print(f"   cached_follows_dir.exists() = {cached_follows_dir.exists()}")
     
     if cached_follows_dir.exists():
-        user_dirs = list(cached_follows_dir.glob("*"))
-        print(f"   Löytyi {len(user_dirs)} käyttäjäkansiota")
+        user_dirs = [d for d in cached_follows_dir.glob("*") if d.is_dir()]
         
         for user_dir in user_dirs:
-            if not user_dir.is_dir():
-                continue
-                
-            print(f"\n   👤 Käyttäjä: {user_dir.name}")
             posts_dir = user_dir / "posts"
-            print(f"      posts_dir = {posts_dir}")
-            print(f"      posts_dir.exists() = {posts_dir.exists()}")
             
             if not posts_dir.exists():
                 continue
             
             post_files = list(posts_dir.glob("*.json"))
-            print(f"      Löytyi {len(post_files)} postausta cachesta")
             
             for post_path in post_files:
                 try:
                     post = json.loads(post_path.read_text(encoding="utf-8"))
-                    print(f"      ✅ Luettu cached post: {post_path.name}")
                     
                     post_entry = {
                         "author": post.get("author", user_dir.name),
@@ -189,15 +176,11 @@ def collect_posts(layout, limit: int) -> list:
                     posts.append(post_entry)
                     
                 except Exception as e:
-                    print(f"      ⚠️ Virhe luettaessa {post_path.name}: {e}")
+                    # Silently skip corrupted posts
                     continue
-    else:
-        print("   ⚠️ cached_follows_dir ei ole olemassa")
     
     # Sort newest first
-    print(f"\n📊 Yhteensä {len(posts)} postausta ennen sorttausta")
     posts.sort(key=lambda x: x["created_at"], reverse=True)
-    print(f"   Lopullinen määrä: {len(posts)}")
     
     return posts[:limit]
 
@@ -211,16 +194,10 @@ def feed(ctx, limit: int, raw: bool, threads: bool):
     """
     Show your feed – posts from you and followed users.
     
-    Alpha 0.0.5: Includes reactions, reposts, and thread awareness.
+    Includes reactions, reposts, and thread awareness.
     """
     data_dir = ctx.obj.get("data_dir")
     layout = FiluXStorageLayout(base_path=data_dir)
-    
-    print(f"\n🔍 DEBUG: feed-komento käynnistyy")
-    print(f"   data_dir = {data_dir}")
-    print(f"   layout.base_path = {layout.base_path}")
-    print(f"   layout.profile_path() = {layout.profile_path()}")
-    print(f"   profile exists? {layout.profile_path().exists()}")
     
     # Verify user is initialized
     if not layout.profile_path().exists():
@@ -232,9 +209,7 @@ def feed(ctx, limit: int, raw: bool, threads: bool):
         sys.exit(1)
     
     # Collect posts
-    print(f"\n🔍 Kutsutaan collect_posts...")
     posts = collect_posts(layout, limit)
-    print(f"   collect_posts palautti {len(posts)} postausta")
     
     # Show empty feed message
     if not posts:
@@ -284,7 +259,7 @@ def feed(ctx, limit: int, raw: bool, threads: bool):
     
     click.echo()
     click.echo(click.style(
-        f"✨ Showing {len(posts)}/{total_own + total_cached} posts (alpha 0.0.5)",
+        f"✨ Showing {len(posts)}/{total_own + total_cached} posts",
         fg="blue"
     ))
     click.echo()

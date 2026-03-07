@@ -13,7 +13,7 @@ from filu_x.core.ipns import IPNSManager
 
 
 # ============================================================================
-# Click group definition (MÄÄRITELLÄÄN ENNEN KOMENTOJA!)
+# Click group definition (must be defined before commands!)
 # ============================================================================
 
 @click.group(name="thread")
@@ -115,7 +115,6 @@ class ThreadManifest:
         for post in posts:
             if "pubkey" in post:
                 participants.add(post["pubkey"])
-            # Also add from participants list if present
             for p in post.get("participants", []):
                 participants.add(p)
         
@@ -141,14 +140,12 @@ class ThreadManifest:
     
     def add_post(self, post: dict):
         """Add a single post to the thread manifest"""
-        # Check if post already in manifest
         post_cid = post.get("cid") or post.get("id")
         existing_cids = {p.get("cid") for p in self.data["posts"]}
         
         if post_cid in existing_cids:
             return
         
-        # Add post to list
         self.data["posts"].append({
             "cid": post_cid,
             "author": post.get("author"),
@@ -158,11 +155,9 @@ class ThreadManifest:
             "reply_to": post.get("reply_to")
         })
         
-        # Re-sort posts chronologically
         self.data["posts"].sort(key=lambda p: p.get("created_at", ""))
         self.data["post_count"] = len(self.data["posts"])
         
-        # Update participants if needed
         if "pubkey" in post:
             pubkey = post["pubkey"]
             if pubkey not in self.data["participants"]:
@@ -312,14 +307,12 @@ def _render_post(post: dict, depth: int = 0, is_error: bool = False, show_cid: b
     
     # Render the post
     if content:
-        # Truncate long content
         if len(content) > 60:
             content = content[:60] + "..."
         click.echo(f"{indent}{prefix} [{time_str}] {author} {icon} {content}")
     else:
         click.echo(f"{indent}{prefix} [{time_str}] {author} {icon}")
     
-    # Optionally show post ID
     if show_cid and post_cid:
         click.echo(f"{indent}   └─ fx://{post_cid[:12]}...")
 
@@ -332,20 +325,16 @@ def _render_thread_manifest(manifest: ThreadManifest, verbose: bool = False):
         click.echo(click.style("📭 Thread has no posts", fg="yellow"))
         return
     
-    # Build lookup by CID
     posts_by_cid = {p["cid"]: p for p in posts}
     
-    # Find root posts (no reply_to or reply_to not in posts)
     root_posts = []
     for p in posts:
         reply_to = p.get("reply_to")
         if not reply_to or reply_to not in posts_by_cid:
             root_posts.append(p)
     
-    # Sort roots chronologically
     root_posts.sort(key=lambda p: p.get("created_at", ""))
     
-    # Render thread header
     root_info = manifest.data.get("root_post", {})
     root_author = root_info.get("author", "unknown") if root_info else "unknown"
     thread_title = manifest.data.get("title", "Untitled Thread")
@@ -369,7 +358,6 @@ def _render_thread_manifest(manifest: ThreadManifest, verbose: bool = False):
     ))
     click.echo()
     
-    # Render thread tree
     def render_tree(post_cid: str, depth: int, visited: set = None):
         if visited is None:
             visited = set()
@@ -382,7 +370,6 @@ def _render_thread_manifest(manifest: ThreadManifest, verbose: bool = False):
         if not post:
             return
         
-        # Convert to full post dict for rendering
         post_dict = {
             "author": post.get("author"),
             "created_at": post.get("created_at"),
@@ -392,19 +379,17 @@ def _render_thread_manifest(manifest: ThreadManifest, verbose: bool = False):
         }
         _render_post(post_dict, depth, show_cid=verbose)
         
-        # Find and render replies
         replies = [p for p in posts if p.get("reply_to") == post_cid]
         replies.sort(key=lambda p: p.get("created_at", ""))
         for reply in replies:
             render_tree(reply["cid"], depth + 1, visited)
     
-    # Render each root post
     for root in root_posts:
         render_tree(root["cid"], 0)
 
 
 # ============================================================================
-# Subcommands (nämä tulevat thread-groupin jälkeen)
+# Subcommands
 # ============================================================================
 
 @thread.command()
@@ -426,11 +411,9 @@ def show(ctx, thread_id: str, verbose: bool, force: bool):
     layout = FiluXStorageLayout(base_path=data_dir)
     manager = ThreadManager(layout)
     
-    # Clean thread ID (remove fx:// if present)
     if thread_id.startswith("fx://"):
         thread_id = thread_id[5:]
     
-    # Validate CID length (basic check)
     if len(thread_id) < 10:
         click.echo(click.style(
             f"❌ Invalid CID: too short ({len(thread_id)} chars). Expected at least 10 chars.",
@@ -446,10 +429,8 @@ def show(ctx, thread_id: str, verbose: bool, force: bool):
     ))
     click.echo()
     
-    # Get thread manifest
     manifest = manager.get_thread_manifest(thread_id)
     
-    # If manifest is empty or force refresh, sync from network
     if manifest.is_empty() or force:
         if force:
             click.echo("   Force refresh from network...")
@@ -457,10 +438,7 @@ def show(ctx, thread_id: str, verbose: bool, force: bool):
             click.echo("   No cached thread manifest found. Syncing from network...")
         click.echo()
         
-        # Sync from network
         ctx.invoke(sync, thread_id=thread_id)
-        
-        # Reload manifest
         manifest = manager.get_thread_manifest(thread_id)
     
     if manifest.is_empty():
@@ -475,10 +453,8 @@ def show(ctx, thread_id: str, verbose: bool, force: bool):
         click.echo("   • The original posts may no longer be available")
         sys.exit(1)
     
-    # Render thread from manifest
     _render_thread_manifest(manifest, verbose)
     
-    # Show follow status
     if manager.is_following(thread_id):
         click.echo()
         click.echo(click.style(
@@ -515,21 +491,17 @@ def sync(ctx, thread_id: str, depth: int, force: bool):
         bold=True
     ))
     
-    # Get thread manifest
     manifest = manager.get_thread_manifest(thread_id)
     
-    # If manifest exists and not force, ask user
     if not manifest.is_empty() and not force:
         click.echo(f"   📋 Thread manifest already exists with {manifest.data['post_count']} posts")
         if not click.confirm("   Sync again anyway?"):
             click.echo("   Cancelled.")
             return
     
-    # Initialize resolver
     ipfs = IPFSClient(mode="auto")
     resolver = LinkResolver(ipfs_client=ipfs)
     
-    # Fetch root post
     try:
         click.echo(f"   📥 Fetching root post...")
         root_post = resolver.resolve_content(thread_id, skip_cache=False)
@@ -538,19 +510,15 @@ def sync(ctx, thread_id: str, depth: int, force: bool):
         click.echo(click.style(f"   ❌ Failed to fetch root post: {e}", fg="red"))
         sys.exit(1)
     
-    # Collect all posts in thread using BFS
     all_posts = {root_post["id"]: root_post}
     to_fetch = [root_post]
-    fetched_count = 1
     
-    # Get participants from root
     participants = set(root_post.get("participants", []))
     if "pubkey" in root_post:
         participants.add(root_post["pubkey"])
     
     click.echo(f"   🔍 Discovering replies (max depth: {depth})...")
     
-    # BFS to find all replies
     for level in range(depth):
         next_to_fetch = []
         
@@ -559,19 +527,14 @@ def sync(ctx, thread_id: str, depth: int, force: bool):
             # 1. Get all participants' manifests
             # 2. Search for posts with thread_id = thread_id
             # 3. Also check for posts that reply_to this post
-            
-            # For alpha, we'll just note that this needs participants' feeds
-            # This is a simplified version
             pass
         
         to_fetch = next_to_fetch
         if not to_fetch:
             break
     
-    # For alpha, we'll just have the root post
     click.echo(f"   📊 Found {len(all_posts)} posts in thread")
     
-    # Update manifest with all posts
     manifest.update_from_posts(list(all_posts.values()), root_post)
     
     click.echo(click.style(
@@ -608,7 +571,6 @@ def follow(ctx, thread_id: str):
         fg="green"
     ))
     
-    # Suggest next steps
     click.echo()
     click.echo(click.style("💡 Next steps:", fg="blue"))
     click.echo(f"   • View thread:     filu-x thread show {thread_id[:16]}...")
@@ -662,7 +624,6 @@ def list(ctx):
     ))
     
     for i, thread_id in enumerate(followed, 1):
-        # Get thread manifest
         manifest = manager.get_thread_manifest(thread_id)
         
         post_count = manifest.data["post_count"]
@@ -761,7 +722,6 @@ def status(ctx, thread_id: str):
     click.echo(click.style(f"📊 Thread Status: {thread_id[:16]}...", fg="cyan", bold=True))
     click.echo()
 
-    # Get thread manifest
     manifest = manager.get_thread_manifest(thread_id)
     
     click.echo("📦 Thread Manifest:")
@@ -783,7 +743,6 @@ def status(ctx, thread_id: str):
     else:
         click.echo("   • No cached thread manifest")
 
-    # Check follow status
     click.echo()
     click.echo("👤 Following:")
     if manager.is_following(thread_id):
@@ -791,7 +750,6 @@ def status(ctx, thread_id: str):
     else:
         click.echo("   • No (use 'thread follow' to start)")
 
-    # Suggestions
     click.echo()
     click.echo("💡 Commands:")
     if manifest.is_empty():
@@ -804,5 +762,4 @@ def status(ctx, thread_id: str):
         click.echo(f"   • Follow:  filu-x thread follow {thread_id[:16]}...")
 
 
-# This is needed for the thread command group to be registered
 __all__ = ['thread', 'ThreadManifest', 'ThreadManager']
