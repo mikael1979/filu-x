@@ -1,2 +1,0 @@
-[console_scripts]
-filu-x = filu_x.cli:cli
