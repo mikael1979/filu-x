@@ -1,4 +1,3 @@
-
 ---
 
 # Filu-X: Decentralized, Censorship-Resistant Social Media Extension
@@ -18,6 +17,18 @@ Filu-X is **not a platform**. It's a file format and a set of conventions that l
 - Everything is **text** (JSON) until it needs to be something else
 
 ## File Structure
+
+### 0. Filu-X Version
+```json
+{
+  "filux": {
+    "version": "000.001.042",
+    "spec": "https://filu-x.org/spec/000.001.042",
+    "lastUpdated": "2025-03-08T14:23:00Z",
+    "postCount": 142
+  }
+}
+```
 
 ### 1. Protocols and Priority
 ```json
@@ -68,7 +79,7 @@ Two approaches:
 {
   "recent": [
     {
-      "id": "0000.0001.0042",
+      "id": "000.001.042",
       "timestamp": "2025-03-08T14:23:00Z",
       "type": "original",
       "text": "Hello world!",
@@ -78,8 +89,8 @@ Two approaches:
   "archive": {
     "ranges": [
       {
-        "start": "0000.0000.0001",
-        "end": "0000.0000.9999",
+        "start": "000.000.001",
+        "end": "000.000.999",
         "timerange": {
           "from": "2024-01-01T00:00:00Z",
           "to": "2024-12-31T23:59:59Z"
@@ -95,22 +106,26 @@ Two approaches:
 ```
 
 ### 4. ID System
-Format: `Category.Archive.Number` (0000.0000.0001 ... 0000.0000.9999 → 0000.0001.0000)
+Format: **`KKK.AAA.NNN`** (Category.Archive.Number)
 
-- Human-readable hierarchical index
-- Indicates post age and archive location at a glance
-- Automatic archive transition when number reaches 9999
+- `000.000.001` - First post ever
+- `000.000.042` - 42nd post
+- `000.000.999` - Last post before archive transition
+- `000.001.001` - First post in new archive
+- `012.003.127` - Category 12, archive 3, post 127
+
+**Automatic archive transition:** `000.000.999` → `000.001.001`
 
 ### 5. Repost and Threading
 ```json
 {
-  "id": "0000.0001.0043",
+  "id": "000.001.043",
   "timestamp": "2025-03-08T15:47:00Z",
   "type": "repost",
   "reaction": "👍 This is good!",
   "original": {
     "author": "npub1...",
-    "postId": "0000.0000.1234",
+    "postId": "000.000.1234",
     "timestamp": "2024-12-01T18:30:00Z",
     "location": {
       "ipfs": "ipfs://QmOriginal",
@@ -119,13 +134,32 @@ Format: `Category.Archive.Number` (0000.0000.0001 ... 0000.0000.9999 → 0000.00
   },
   "chain": {
     "depth": 2,
-    "via": "0000.0001.0030"
+    "via": "000.001.030"
   },
   "signature": "..."
 }
 ```
 
-### 6. Hierarchical Keys (HD)
+### 6. Private Posts (Encrypted)
+```json
+{
+  "id": "000.001.044",
+  "privacy": {
+    "visibility": "private",
+    "recipients": ["npub1...", "npub2..."],
+    "encryption": "age-encryption"
+  },
+  "encrypted": {
+    "data": "base64-encrypted-content...",
+    "keyInfo": {
+      "npub1...": "encrypted-key-for-recipient1",
+      "npub2...": "encrypted-key-for-recipient2"
+    }
+  }
+}
+```
+
+### 7. Hierarchical Keys (HD)
 ```
 Master key (offline cold storage)
     ├── Subkey 1 (daily use)
@@ -135,7 +169,7 @@ Master key (offline cold storage)
 
 ```json
 {
-  "profile": {
+  "keys": {
     "master": { 
       "pubkey": "xpub1...", 
       "signature": "..." 
@@ -148,13 +182,37 @@ Master key (offline cold storage)
     },
     "revoked": [
       {
-        "pubkey": "xpub2...",
+        "pubkey": "xpub3...",
         "reason": "lost device",
         "timestamp": "2025-03-08T22:00:00Z",
         "signature": "xpub1:..."
       }
     ]
   }
+}
+```
+
+### 8. Media
+```json
+{
+  "media": [
+    {
+      "type": "image",
+      "alt": "Sunset over lake",
+      "sources": {
+        "ipfs": "ipfs://QmImageHash",
+        "https": "https://example.com/image.jpg"
+      }
+    },
+    {
+      "type": "video",
+      "poster": "ipfs://QmThumbnail",
+      "sources": {
+        "ipfs": "ipfs://QmVideoHash",
+        "https": "https://example.com/video.mp4"
+      }
+    }
+  ]
 }
 ```
 
@@ -165,14 +223,25 @@ Master key (offline cold storage)
 3. **User Control** - Own data, own keys, own priority rules
 4. **Decentralization** - No central server required, works atop existing platforms
 5. **Security** - Cryptographic signatures and hierarchical key management
-6. **Persistence** - Active + archive design ensures content longevity
+6. **Privacy** - End-to-end encryption for private posts
+7. **Persistence** - Active + archive design ensures content longevity
 
 ## Use Cases
+Share a link on any social media (X, Facebook, Instagram, LinkedIn, Bluesky, Threads, Nostr...) → followers see your full post even if the platform removes it
 
-- **Share a link on X.com or in any social media** → followers see your post even if X removes it
-- **Resilient profile** → Your profile works via IPFS, with HTTPS as fallback
-- **Persistent conversations** → Discussions survive even if the original platform disappears
-- **Key compromise** → Revoke a lost device key without exposing your master key
+Resilient profile → Your profile works via IPFS, with HTTPS as fallback
+
+Private conversations → End-to-end encrypted posts for selected recipients
+
+Persistent discussions → Conversations survive even if the original platform disappears
+
+Key compromise → Revoke a lost device key without exposing your master key
+
+Share anywhere, persist everywhere → Post on X, Facebook, or Instagram — your content lives on through Filu-X even if the original platform deletes it
+
+## Example
+
+See [`example-filu-x.json`](example-filu-x.json) for a complete working example.
 
 ## Next Steps
 
@@ -184,3 +253,7 @@ Master key (offline cold storage)
 ---
 
 **Filu-X: Post once, be found everywhere.**
+
+---
+
+
