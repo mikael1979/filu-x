@@ -1,3 +1,5 @@
+
+
 ---
 
 # Filu-X: Decentralized, Censorship-Resistant Social Media Extension
@@ -227,17 +229,12 @@ Master key (offline cold storage)
 7. **Persistence** - Active + archive design ensures content longevity
 
 ## Use Cases
-Share a link on any social media (X, Facebook, Instagram, LinkedIn, Bluesky, Threads, Nostr...) → followers see your full post even if the platform removes it
 
-Resilient profile → Your profile works via IPFS, with HTTPS as fallback
-
-Private conversations → End-to-end encrypted posts for selected recipients
-
-Persistent discussions → Conversations survive even if the original platform disappears
-
-Key compromise → Revoke a lost device key without exposing your master key
-
-Share anywhere, persist everywhere → Post on X, Facebook, or Instagram — your content lives on through Filu-X even if the original platform deletes it
+- **Share anywhere, persist everywhere** → Post on X, Facebook, Instagram, or any platform — your content lives on through Filu-X even if the original platform deletes it
+- **Resilient profile** → Your profile works via IPFS, with HTTPS as fallback
+- **Private conversations** → End-to-end encrypted posts for selected recipients
+- **Persistent discussions** → Conversations survive even if the original platform disappears
+- **Key compromise** → Revoke a lost device key without exposing your master key
 
 ## Example
 
