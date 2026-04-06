@@ -1,0 +1,516 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "schema-combined.json",
+  "title": "Filu-X Document",
+  "description": "Decentralized social media post container",
+  "type": "object",
+  
+  "required": ["version", "mode", "created", "profile"],
+  
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d{3}\\.\\d{3}\\.\\d{3}$",
+      "description": "Filu-X specification version (e.g., 001.000.000)"
+    },
+    
+    "mode": {
+      "type": "string",
+      "enum": ["single", "linked", "hybrid"],
+      "description": "Storage mode"
+    },
+    
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 creation timestamp"
+    },
+    
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 last update timestamp"
+    },
+    
+    "profile": {
+      "type": "object",
+      "required": ["name", "pubkey"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Display name"
+        },
+        "pubkey": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Author's public key (hex, 64 chars)"
+        },
+        "avatar": {
+          "type": "string",
+          "format": "uri",
+          "description": "Avatar image URI"
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Short biography"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "description": "Personal website"
+        },
+        "created": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation time"
+        },
+        "updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile last update"
+        }
+      },
+      "additionalProperties": true
+    },
+    
+    "protocols": {
+      "type": "object",
+      "required": ["priority"],
+      "properties": {
+        "priority": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Protocol priority order"
+        }
+      },
+      "patternProperties": {
+        "^(?!priority$)[a-z0-9-]+$": {
+          "type": "object",
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Primary URL for this protocol"
+            },
+            "mirrors": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri"
+              },
+              "description": "Mirror URLs"
+            },
+            "sync": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["public", "private", "media", "archive", "text-only"]
+              },
+              "description": "What content is synced to this protocol"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false,
+      "description": "Protocol-specific access information"
+    },
+    
+    "signature": {
+      "type": "object",
+      "required": ["pubkey", "value"],
+      "properties": {
+        "pubkey": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Signing public key"
+        },
+        "value": {
+          "type": "string",
+          "description": "Base64-encoded signature"
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": ["ed25519", "secp256k1", "rsa"],
+          "default": "ed25519",
+          "description": "Signature algorithm"
+        },
+        "signed_by": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Parent key if this is a subkey signature"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Signature timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    
+    "statistics": {
+      "type": "object",
+      "properties": {
+        "total_posts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of posts"
+        },
+        "total_media": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of media attachments"
+        },
+        "last_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9999999,
+          "description": "Last sequence number used"
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last statistics update"
+        }
+      },
+      "additionalProperties": true
+    },
+    
+    "privacy_policy": {
+      "type": "string",
+      "enum": ["public-only"],
+      "description": "Privacy policy for single-file mode"
+    },
+    
+    "posts": {
+      "type": "array",
+      "description": "Posts array - interpretation depends on mode",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["id", "created", "text"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+                "description": "Hybrid ID: sequence.hash"
+              },
+              "created": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Post creation time"
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 10000,
+                "description": "Post content"
+              },
+              "updated": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Post last update"
+              },
+              "media": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["type", "urls"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["image", "video", "audio", "document", "link", "embed"],
+                      "description": "Media type"
+                    },
+                    "urls": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "minProperties": 1,
+                      "description": "Protocol-specific URLs"
+                    },
+                    "alt": {
+                      "type": "string",
+                      "maxLength": 500,
+                      "description": "Alternative text"
+                    },
+                    "caption": {
+                      "type": "string",
+                      "maxLength": 1000,
+                      "description": "Media caption"
+                    },
+                    "width": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Width in pixels"
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Height in pixels"
+                    },
+                    "duration": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Duration in seconds"
+                    },
+                    "poster": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "Thumbnail/preview image"
+                    },
+                    "size": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "File size in bytes"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "maxItems": 10,
+                "description": "Media attachments"
+              },
+              "reply_to": {
+                "type": "string",
+                "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+                "description": "Parent post ID"
+              },
+              "repost_of": {
+                "type": "string",
+                "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+                "description": "Original post ID"
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200,
+                "description": "Post subject/title"
+              },
+              "language": {
+                "type": "string",
+                "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+                "description": "BCP47 language code"
+              }
+            },
+            "additionalProperties": false,
+            "description": "Full post content (for single-file mode)"
+          },
+          {
+            "type": "object",
+            "required": ["id", "urls"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^\\d{7}\\.[a-f0-9]{12}$"
+              },
+              "urls": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "minProperties": 1,
+                "description": "Protocol-specific URLs to the post file"
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 200,
+                "description": "Short summary/preview"
+              },
+              "created": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Original post creation time"
+              }
+            },
+            "oneOf": [
+              {
+                "required": ["public_key"],
+                "properties": {
+                  "public_key": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "Public key for this post (included with reference)"
+                  }
+                },
+                "not": {
+                  "required": ["recipients", "encryption"]
+                }
+              },
+              {
+                "required": ["recipients", "encryption"],
+                "properties": {
+                  "recipients": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "description": "Public keys of allowed recipients"
+                  },
+                  "encryption": {
+                    "type": "object",
+                    "required": ["algorithm", "data", "key_info"],
+                    "properties": {
+                      "algorithm": {
+                        "type": "string",
+                        "enum": ["age", "pgp", "nacl", "custom"],
+                        "description": "Encryption algorithm used"
+                      },
+                      "data": {
+                        "type": "string",
+                        "description": "Base64-encoded encrypted content"
+                      },
+                      "key_info": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "description": "Encrypted symmetric key per recipient"
+                        },
+                        "minProperties": 1,
+                        "description": "Per-recipient encrypted keys"
+                      },
+                      "version": {
+                        "type": "string",
+                        "description": "Encryption format version"
+                      }
+                    },
+                    "additionalProperties": true,
+                    "description": "Encryption information"
+                  }
+                },
+                "not": {
+                  "required": ["public_key"]
+                }
+              }
+            ],
+            "additionalProperties": false,
+            "description": "Reference to external post (for linked mode)"
+          }
+        ]
+      }
+    },
+    
+    "archive": {
+      "type": "object",
+      "required": ["urls", "range", "post_count"],
+      "properties": {
+        "urls": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uri"
+          },
+          "minProperties": 1,
+          "description": "Protocol-specific archive locations"
+        },
+        "range": {
+          "type": "object",
+          "required": ["start", "end"],
+          "properties": {
+            "start": {
+              "type": "string",
+              "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+              "description": "First post ID in archive"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+              "description": "Last post ID in archive"
+            },
+            "start_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "First sequence number"
+            },
+            "end_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Last sequence number"
+            }
+          },
+          "additionalProperties": true,
+          "description": "ID range of archived posts"
+        },
+        "timerange": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["from", "to"],
+          "description": "Time range of archived posts"
+        },
+        "post_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of posts in archive"
+        },
+        "filux_version": {
+          "type": "string",
+          "pattern": "^\\d{3}\\.\\d{3}\\.\\d{3}$",
+          "description": "Filu-X version used for archive"
+        },
+        "includes_private": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether archive contains private posts"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["single-file", "linked", "compressed"],
+          "default": "single-file",
+          "description": "Archive format"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Archive information (for hybrid mode)"
+    }
+  },
+  
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": { "const": "single" }
+        }
+      },
+      "then": {
+        "required": ["privacy_policy"],
+        "properties": {
+          "privacy_policy": { "const": "public-only" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": { "const": "hybrid" }
+        }
+      },
+      "then": {
+        "required": ["archive"]
+      }
+    }
+  ],
+  
+  "additionalProperties": true
+}

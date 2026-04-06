@@ -1,0 +1,60 @@
+{
+  "version": "001.000.000",
+  "mode": "hybrid",
+  "created": "2025-03-11T10:00:00Z",
+  "updated": "2025-03-11T10:00:00Z",
+  
+  "profile": {
+    "name": "Matti Hybrid",
+    "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+    "avatar": "ipfs://QmAvatar789",
+    "bio": "Hybrid mode test user"
+  },
+  
+  "protocols": {
+    "priority": ["ipfs", "https"],
+    "ipfs": {
+      "url": "ipfs://QmHybrid123"
+    },
+    "https": {
+      "url": "https://example.com/hybrid.json"
+    }
+  },
+  
+  "posts": [
+    {
+      "id": "0001042.a1b2c3d4e5f6",
+      "created": "2025-03-11T09:00:00Z",
+      "text": "Active post - newest!"
+    },
+    {
+      "id": "0001041.b2c3d4e5f6a7",
+      "created": "2025-03-10T16:00:00Z",
+      "text": "Second newest"
+    }
+  ],
+  
+  "archive": {
+    "urls": {
+      "ipfs": "ipfs://QmArchive2025",
+      "https": "https://example.com/archive/2025.json"
+    },
+    "range": {
+      "start": "0000001.a1b2c3d4e5f6",
+      "end": "0001040.c3d4e5f6a7b8"
+    },
+    "post_count": 1040,
+    "includes_private": true
+  },
+  
+  "statistics": {
+    "total_posts": 1042,
+    "last_sequence": 1042
+  },
+  
+  "signature": {
+    "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+    "value": "MEUCIQDpY7RvHcTz2hZJkLqX8xKJyKJyKJyKJyKJyKJyKJyKJyKQIgQEiI",
+    "algorithm": "ed25519"
+  }
+}

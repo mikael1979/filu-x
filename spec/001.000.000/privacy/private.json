@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "file:///spec/001.000.000/privacy/private.json",
+  
+  "type": "object",
+  
+  "properties": {
+    "recipients": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Public keys of allowed recipients"
+    },
+    
+    "encryption": {
+      "$ref": "encryption.json"
+    },
+    
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "visibility": {
+          "const": "private"
+        }
+      },
+      "required": ["visibility"]
+    }
+  },
+  
+  "required": ["recipients", "encryption"]
+}

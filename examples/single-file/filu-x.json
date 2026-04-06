@@ -1,0 +1,65 @@
+{
+  "version": "001.000.000",
+  "mode": "single",
+  "created": "2025-03-11T10:00:00Z",
+  "updated": "2025-03-11T10:00:00Z",
+  
+  "profile": {
+    "name": "Matti Single",
+    "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+    "avatar": "ipfs://QmAvatar123",
+    "bio": "Single-file mode test user",
+    "website": "https://matti.example"
+  },
+  
+  "protocols": {
+    "priority": ["ipfs", "https"],
+    "ipfs": {
+      "url": "ipfs://QmSingleFile123"
+    },
+    "https": {
+      "url": "https://example.com/filu-x.json"
+    }
+  },
+  
+  "privacy_policy": "public-only",
+  
+  "posts": [
+    {
+      "id": "0000001.a1b2c3d4e5f6",
+      "created": "2025-03-10T12:00:00Z",
+      "text": "Hello world! This is my first post in single-file mode.",
+      "media": [
+        {
+          "type": "image",
+          "urls": {
+            "ipfs": "ipfs://QmImage123"
+          },
+          "alt": "Test image"
+        }
+      ]
+    },
+    {
+      "id": "0000002.b2c3d4e5f6a7",
+      "created": "2025-03-10T13:30:00Z",
+      "text": "Second post, still in the same file.",
+      "reply_to": "0000001.a1b2c3d4e5f6"
+    },
+    {
+      "id": "0000003.c3d4e5f6a7b8",
+      "created": "2025-03-11T09:00:00Z",
+      "text": "Single-file mode keeps all posts together. Simple and clean!"
+    }
+  ],
+  
+  "statistics": {
+    "total_posts": 3,
+    "last_sequence": 3
+  },
+  
+  "signature": {
+    "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf",
+    "value": "MEUCIQDpY7RvHcTz2hZJkLqX8xKJyKJyKJyKJyKJyKJyKJyKJyKQIgQEiI",
+    "algorithm": "ed25519"
+  }
+}

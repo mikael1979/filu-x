@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "file:///spec/001.000.000/core/signature.json",
+  
+  "type": "object",
+  "required": ["pubkey", "value"],
+  
+  "properties": {
+    "pubkey": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Signing public key"
+    },
+    
+    "value": {
+      "type": "string",
+      "description": "Base64-encoded signature"
+    },
+    
+    "algorithm": {
+      "type": "string",
+      "enum": ["ed25519", "secp256k1", "rsa"],
+      "default": "ed25519",
+      "description": "Signature algorithm"
+    },
+    
+    "signed_by": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Parent key if this is a subkey signature"
+    },
+    
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Signature timestamp"
+    }
+  },
+  
+  "additionalProperties": false
+}

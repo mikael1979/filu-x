@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "file:///spec/001.000.000/posts/post.json",
+  
+  "type": "object",
+  "required": ["id", "created"],
+  
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+      "description": "Hybrid ID: sequence.hash"
+    },
+    
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Post creation time"
+    },
+    
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Post last update"
+    },
+    
+    "text": {
+      "type": "string",
+      "maxLength": 10000,
+      "description": "Post content"
+    },
+    
+    "media": {
+      "type": "array",
+      "items": {
+        "$ref": "media.json"
+      },
+      "maxItems": 10,
+      "description": "Media attachments"
+    },
+    
+    "reply_to": {
+      "type": "string",
+      "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+      "description": "Parent post ID"
+    },
+    
+    "repost_of": {
+      "type": "string",
+      "pattern": "^\\d{7}\\.[a-f0-9]{12}$",
+      "description": "Original post ID"
+    },
+    
+    "subject": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Post subject/title"
+    },
+    
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "description": "BCP47 language code"
+    }
+  },
+  
+  "additionalProperties": true
+}

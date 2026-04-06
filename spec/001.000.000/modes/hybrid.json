@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "file:///spec/001.000.000/modes/hybrid.json",
+  
+  "type": "object",
+  
+  "properties": {
+    "mode": {
+      "const": "hybrid"
+    },
+    
+    "posts": {
+      "type": "array",
+      "items": {
+        "$ref": "../posts/post.json"
+      },
+      "maxItems": 50,
+      "description": "Active posts (public only)"
+    },
+    
+    "archive": {
+      "$ref": "../archive/archive.json"
+    }
+  },
+  
+  "required": ["archive"],
+  
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "posts": { "type": "array" }
+        }
+      },
+      "then": {
+        "properties": {
+          "posts": {
+            "items": {
+              "not": {
+                "required": ["encrypted"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

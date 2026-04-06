@@ -1,7 +1,4 @@
-
-
----
-
+```markdown
 # Filu-X: Decentralized, Censorship-Resistant Social Media Extension
 
 ## Philosophy
@@ -18,205 +15,276 @@ Filu-X is **not a platform**. It's a file format and a set of conventions that l
 - Followers load content in **that order**
 - Everything is **text** (JSON) until it needs to be something else
 
-## File Structure
+## Storage Modes
 
-### 0. Filu-X Version
+Filu-X supports three storage modes, allowing users to choose between simplicity and scalability:
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| **Single-file** | All posts in one file | Beginners, occasional posters (< 50 posts) |
+| **Linked** | References to separate post files | Active users, lots of media |
+| **Hybrid** | Active posts (≤50) + archive reference | Moderate number of posts |
+
+### Single-file Mode
 ```json
 {
-  "filux": {
-    "version": "000.001.042",
-    "spec": "https://filu-x.org/spec/000.001.042",
-    "lastUpdated": "2025-03-08T14:23:00Z",
-    "postCount": 142
-  }
-}
-```
-
-### 1. Protocols and Priority
-```json
-{
-  "protocols": {
-    "priority": ["ipfs", "https", "nostr", "tor"],
-    "ipfs": {
-      "primary": "ipfs://QmActiveFileHash",
-      "mirrors": ["ipfs://QmMirror1", "ipfs://QmMirror2"]
-    },
-    "https": {
-      "primary": "https://example.net/filu-x.json",
-      "mirrors": ["https://archive.org/filu-x.json"]
-    }
-  }
-}
-```
-
-### 2. Profile
-Two approaches:
-- **Link to separate HTML page** (full creative freedom)
-- **HTML template in JSON** (safe, simple)
-
-```json
-{
+  "version": "000.000.001",
+  "mode": "single",
   "profile": {
     "name": "Matti",
-    "avatar": "ipfs://QmAvatar",
-    "bio": "Decentralization enthusiast",
-    "template": {
-      "html": "<div class='profile'><img src='{{avatar}}'/><h1>{{name}}</h1><p>{{bio}}</p></div>",
-      "css": ".profile { color: blue; } .profile img { width: 100px; }"
-    },
-    "page": {
-      "ipfs": "ipfs://QmProfilePage",
-      "https": "https://matti.fi/profile.html",
-      "priority": ["ipfs", "https"]
-    }
-  }
-}
-```
-
-### 3. Active and Archive
-- **Active file**: last N posts (e.g., 20 most recent)
-- **Archive files**: older posts organized by ID ranges and time ranges
-
-```json
-{
-  "recent": [
-    {
-      "id": "000.001.042",
-      "timestamp": "2025-03-08T14:23:00Z",
-      "type": "original",
-      "text": "Hello world!",
-      "signature": "..."
-    }
-  ],
-  "archive": {
-    "ranges": [
-      {
-        "start": "000.000.001",
-        "end": "000.000.999",
-        "timerange": {
-          "from": "2024-01-01T00:00:00Z",
-          "to": "2024-12-31T23:59:59Z"
-        },
-        "location": {
-          "ipfs": "ipfs://QmArchive1",
-          "https": "https://archive.org/archive1.json"
-        }
-      }
-    ]
-  }
-}
-```
-
-### 4. ID System
-Format: **`KKK.AAA.NNN`** (Category.Archive.Number)
-
-- `000.000.001` - First post ever
-- `000.000.042` - 42nd post
-- `000.000.999` - Last post before archive transition
-- `000.001.001` - First post in new archive
-- `012.003.127` - Category 12, archive 3, post 127
-
-**Automatic archive transition:** `000.000.999` → `000.001.001`
-
-### 5. Repost and Threading
-```json
-{
-  "id": "000.001.043",
-  "timestamp": "2025-03-08T15:47:00Z",
-  "type": "repost",
-  "reaction": "👍 This is good!",
-  "original": {
-    "author": "npub1...",
-    "postId": "000.000.1234",
-    "timestamp": "2024-12-01T18:30:00Z",
-    "location": {
-      "ipfs": "ipfs://QmOriginal",
-      "https": "https://example.com/post/123"
-    }
+    "pubkey": "61050fdd..."
   },
-  "chain": {
-    "depth": 2,
-    "via": "000.001.030"
-  },
-  "signature": "..."
-}
-```
-
-### 6. Private Posts (Encrypted)
-```json
-{
-  "id": "000.001.044",
-  "privacy": {
-    "visibility": "private",
-    "recipients": ["npub1...", "npub2..."],
-    "encryption": "age-encryption"
-  },
-  "encrypted": {
-    "data": "base64-encrypted-content...",
-    "keyInfo": {
-      "npub1...": "encrypted-key-for-recipient1",
-      "npub2...": "encrypted-key-for-recipient2"
+  "posts": [
+    {
+      "id": "000.000.001.000001.a1b2c3d4",
+      "created": "2025-03-10T12:00:00Z",
+      "text": "Hello world!"
     }
-  }
+  ]
 }
 ```
 
-### 7. Hierarchical Keys (HD)
-```
-Master key (offline cold storage)
-    ├── Subkey 1 (daily use)
-    ├── Subkey 2 (mobile device)
-    └── Subkey 3 (backup)
-```
-
+### Linked Mode
 ```json
 {
-  "keys": {
-    "master": { 
-      "pubkey": "xpub1...", 
-      "signature": "..." 
-    },
-    "active": {
-      "pubkey": "xpub2...",
-      "validFrom": "2025-01-01T00:00:00Z",
-      "validTo": "2025-12-31T23:59:59Z",
-      "signature": "xpub1:..."
-    },
-    "revoked": [
-      {
-        "pubkey": "xpub3...",
-        "reason": "lost device",
-        "timestamp": "2025-03-08T22:00:00Z",
-        "signature": "xpub1:..."
-      }
-    ]
-  }
-}
-```
-
-### 8. Media
-```json
-{
-  "media": [
+  "version": "000.000.001",
+  "mode": "linked",
+  "profile": {
+    "name": "Matti",
+    "pubkey": "61050fdd..."
+  },
+  "posts": [
     {
-      "type": "image",
-      "alt": "Sunset over lake",
-      "sources": {
-        "ipfs": "ipfs://QmImageHash",
-        "https": "https://example.com/image.jpg"
-      }
-    },
-    {
-      "type": "video",
-      "poster": "ipfs://QmThumbnail",
-      "sources": {
-        "ipfs": "ipfs://QmVideoHash",
-        "https": "https://example.com/video.mp4"
+      "id": "000.000.001.000001.a1b2c3d4",
+      "urls": {
+        "ipfs": "ipfs://QmPost1",
+        "https": "https://example.com/posts/000001.json"
       }
     }
   ]
 }
 ```
+
+### Hybrid Mode
+```json
+{
+  "version": "000.000.002",
+  "mode": "hybrid",
+  "profile": {
+    "name": "Matti",
+    "pubkey": "61050fdd..."
+  },
+  "posts": [
+    {
+      "id": "000.000.002.000002.a1b2c3d4",
+      "created": "2025-03-10T12:00:00Z",
+      "text": "Latest active post!"
+    }
+  ],
+  "archive": {
+    "urls": {
+      "ipfs": "ipfs://QmArchive2025.tar.gz"
+    },
+    "range": {
+      "start": "000.000.001.000001.a1b2c3d4",
+      "end": "000.000.001.000040.c3d4e5f6"
+    },
+    "post_count": 40
+  }
+}
+```
+
+## ID System
+
+### Hybrid ID Format
+
+```
+manifestID.postNUM.postHASH
+000.000.001.000042.a1b2c3d4
+└─────────┘ └────┘ └──────┘
+   11 chars   6 chars  8 chars = 27 chars total
+```
+
+| Component | Format | Description |
+|-----------|--------|-------------|
+| **manifestID** | `XXX.XXX.XXX` | Manifest version (major.minor.patch) |
+| **postNUM** | `XXXXXX` | Sequential number (000001-999999), resets with new manifest |
+| **postHASH** | `xxxxxxxx` | First 8 chars of SHA-256 hash (integrity check) |
+
+### Integrity Verification
+
+```python
+def verify_post_integrity(post_obj):
+    # Remove ID and signature from calculation
+    canonical = {k: v for k, v in sorted(post_obj.items()) 
+                 if k not in ('id', 'signature')}
+    data = json.dumps(canonical, sort_keys=True, separators=(',',':'))
+    full_hash = hashlib.sha256(data.encode()).hexdigest()
+    expected_hash = post_obj['id'].split('.')[-1]
+    return full_hash.startswith(expected_hash)
+```
+
+## Filename Convention
+
+### Priority Order
+```
+username --> nickname --> pubkey(16)
+```
+
+| Priority | Identifier | Format | Example |
+|----------|------------|--------|---------|
+| 1 | username | `username_filu-x.json` | `matti_filu-x.json` |
+| 2 | nickname | `nickname_filu-x.json` | `matti42_filu-x.json` |
+| 3 | pubkey(16) | `pubkey(16)_filu-x.json` | `61050fdd09764041_filu-x.json` |
+
+### Collision Handling
+
+When following a user and the username is already taken:
+
+1. Client asks for a distinguishing nickname
+2. If nickname is also taken → automatic numbering
+3. If no nickname provided → use pubkey(16)
+
+## Directory Structure
+
+```
+filu-x-data/
+├── my/                              # Your profile
+│   ├── profile.json                 # Your manifest
+│   ├── keys/                        # Your keys
+│   │   ├── master.asc
+│   │   └── active.asc
+│   └── drafts/                      # Draft posts
+│
+├── following/                       # Followed users (slot-based)
+│   ├── followed_index.json          # Central index
+│   ├── user001/                     # Slot 1
+│   │   ├── .identity                # Backup mapping
+│   │   ├── manifest.json
+│   │   ├── history/                 # Old versions
+│   │   └── cache/                   # Post cache
+│   ├── user002/                     # Slot 2
+│   │   └── ...
+│   └── user003/                     # Slot 3 (inactive)
+│
+├── cache/                           # Shared cache
+│   ├── media/                       # Media files (hash-based)
+│   └── archives/                    # Downloaded archives
+│
+├── requests/                        # Change requests (notifier → client)
+│   ├── incoming/
+│   └── processed/
+│
+└── config/                          # Local settings
+    ├── client.json
+    └── notifier.json
+```
+
+### followed_index.json
+
+```json
+{
+  "version": "000.001.001",
+  "last_updated": "2025-04-07T12:00:00Z",
+  "next_slot": 4,
+  "free_slots": [],
+  "users": {
+    "user001": {
+      "pubkey": "61050fdd...",
+      "username": "alice",
+      "nickname": "Alice Coder",
+      "active": true,
+      "added": "2025-04-01T10:00:00Z",
+      "last_fetched": "2025-04-07T11:00:00Z",
+      "last_version": "000.001.005",
+      "protocols": {
+        "primary": "https://alice.example.com/filu-x.json"
+      }
+    }
+  }
+}
+```
+
+## Protocols
+
+### Protocol Structure
+
+```json
+{
+  "protocols": {
+    "priority": ["ipfs", "https", "nostr"],
+    "ipfs": {
+      "url": "ipfs://QmProfile123",
+      "mirrors": ["ipfs://QmMirror1"],
+      "sync": ["public", "media", "archive"]
+    },
+    "https": {
+      "url": "https://example.com/matti_filu-x.json",
+      "sync": ["public", "text-only"]
+    }
+  }
+}
+```
+
+### fx:// Links
+
+`fx://` is a direct link to a Filu-X manifest - similar to `http://` but Filu-X specific.
+
+| Format | Example | Use |
+|--------|---------|-----|
+| Hash-based | `fx://QmFiluXManifestHash` | Direct CID reference |
+| URL-based | `fx://https://example.com/matti_filu-x.json` | Direct HTTPS |
+| Post reference | `fx://QmHash/000.000.001.000042` | Specific post (archived) |
+| Short (alias) | `fx://@matti` | Requires DNS/NIP-05 resolution |
+
+## Privacy & Encryption
+
+| Mode | Public Posts | Private Posts |
+|------|--------------|---------------|
+| **Single** | ✅ | ❌ |
+| **Linked** | ✅ | ✅ |
+| **Hybrid** | ✅ (active) | ✅ (in archive) |
+
+### Private Post Example
+
+```json
+{
+  "id": "000.000.001.000043.b2c3d4e5",
+  "urls": { "ipfs": "ipfs://QmPrivatePost" },
+  "recipients": ["7b3d8f2a...", "9a4c2e8d..."],
+  "encryption": {
+    "algorithm": "age",
+    "data": "base64-encrypted-content",
+    "key_info": {
+      "7b3d8f2a...": "encrypted-key-for-recipient1"
+    }
+  }
+}
+```
+
+## Architecture Components
+
+### Client (`filu-x-client`)
+- CLI for user interaction
+- Post creation and manifest updates
+- Following management
+- Feed display
+- Primary lock holder (writes)
+
+### Notifier (`filu-x-notifier`)
+- Background daemon
+- Polls followed users for updates
+- Listens for Nostr events (future)
+- Creates change requests when client has lock
+- Secondary lock holder (reads only)
+
+### Change Request System
+
+When notifier detects an update but client holds the lock:
+
+1. Notifier creates a change request file in `requests/incoming/`
+2. Client processes pending requests on next startup/command
+3. Request is moved to `requests/processed/` after handling
 
 ## Key Principles
 
@@ -238,19 +306,17 @@ Master key (offline cold storage)
 
 ## Example
 
-See [`example-filu-x.json`](example-filu-x.json) for a complete working example.
+See [`examples/single-file/filu-x.json`](examples/single-file/filu-x.json) for a complete working example.
 
 ## Next Steps
 
-- [ ] Protocol specification document
-- [ ] Reference client implementation
+- [x] Protocol specification document
+- [ ] Reference client implementation (alpha)
+- [ ] Notifier daemon (alpha)
 - [ ] Example application and demo
 - [ ] Community feedback and iteration
 
 ---
 
 **Filu-X: Post once, be found everywhere.**
-
----
-
-
+```
