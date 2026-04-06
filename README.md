@@ -1,29 +1,64 @@
+         Tässä päivitetty README.md Apache 2.0 -lisenssillä:
+
+---
+
 ```markdown
 # Filu-X: Decentralized, Censorship-Resistant Social Media Extension
 
+**Version:** 000.000.001 (Stable)  
+**License:** Apache 2.0  
+**Language:** English | [Suomi](README.fi.md)
+
+---
+
 ## Philosophy
-Filu-X is a simple idea rooted in Unix philosophy: **do one thing well**. Share a link on social media that points to a file containing your post and information about where else it can be found via different protocols. If one platform censors or goes down, the content remains accessible elsewhere.
 
-> *"Write programs that do one thing and do it well. Write programs to work together."* — Peter H. Salus, A Quarter-Century of Unix
+Filu-X is rooted in Unix philosophy: **do one thing well**. Share a link on social media that points to a file containing your posts and information about where else they can be found via different protocols. If one platform censors or goes down, your content remains accessible elsewhere.
 
-Filu-X is **not a platform**. It's a file format and a set of conventions that lets you post once and be found everywhere.
+> *"Write programs that do one thing and do it well. Write programs to work together."*  
+> — Peter H. Salus, A Quarter-Century of Unix
+
+Filu-X is **not a platform**. It's a file format and a set of conventions that lets you **post once and be found everywhere**.
+
+---
 
 ## Core Concept
-- Each post is (or references) a **file**
+
+- Each profile is a **JSON file** (manifest)
 - The file contains **links to itself** via multiple protocols (IPFS, HTTPS, Nostr, Tor...)
-- The user defines **protocol priority**
-- Followers load content in **that order**
+- The user defines **protocol priority** (which to try first)
+- Followers load content in **that priority order**
 - Everything is **text** (JSON) until it needs to be something else
+
+---
+
+## Quick Start
+
+```bash
+# Install (future)
+pip install filu-x
+
+# Create your first profile
+filu-x init --username matti
+
+# Post something
+filu-x post "Hello, decentralized world!"
+
+# Share the link anywhere
+# fx://QmYourProfileHash
+```
+
+---
 
 ## Storage Modes
 
-Filu-X supports three storage modes, allowing users to choose between simplicity and scalability:
+Filu-X supports three storage modes. Choose based on your activity level:
 
-| Mode | Description | Best For |
-|------|-------------|----------|
-| **Single-file** | All posts in one file | Beginners, occasional posters (< 50 posts) |
-| **Linked** | References to separate post files | Active users, lots of media |
-| **Hybrid** | Active posts (≤50) + archive reference | Moderate number of posts |
+| Mode | Description | Best For | Max Posts |
+|------|-------------|----------|-----------|
+| **Single-file** | All posts in one file | Beginners, occasional posters | ~50 |
+| **Linked** | References to separate post files | Active users, lots of media | Unlimited |
+| **Hybrid** | Active posts (≤50) + archive reference | Moderate activity | Unlimited with archives |
 
 ### Single-file Mode
 ```json
@@ -31,8 +66,8 @@ Filu-X supports three storage modes, allowing users to choose between simplicity
   "version": "000.000.001",
   "mode": "single",
   "profile": {
-    "name": "Matti",
-    "pubkey": "61050fdd..."
+    "username": "matti",
+    "pubkey": "61050fdd097640415c9a65e85174a7a7a9bf4394d51e53e35f564264e08fcddf"
   },
   "posts": [
     {
@@ -50,7 +85,7 @@ Filu-X supports three storage modes, allowing users to choose between simplicity
   "version": "000.000.001",
   "mode": "linked",
   "profile": {
-    "name": "Matti",
+    "username": "matti",
     "pubkey": "61050fdd..."
   },
   "posts": [
@@ -71,7 +106,7 @@ Filu-X supports three storage modes, allowing users to choose between simplicity
   "version": "000.000.002",
   "mode": "hybrid",
   "profile": {
-    "name": "Matti",
+    "username": "matti",
     "pubkey": "61050fdd..."
   },
   "posts": [
@@ -83,8 +118,10 @@ Filu-X supports three storage modes, allowing users to choose between simplicity
   ],
   "archive": {
     "urls": {
-      "ipfs": "ipfs://QmArchive2025.tar.gz"
+      "ipfs": "ipfs://QmArchive2025.tar.gz",
+      "https": "https://example.com/archive/2025.tar.gz"
     },
+    "format": "tar.gz",
     "range": {
       "start": "000.000.001.000001.a1b2c3d4",
       "end": "000.000.001.000040.c3d4e5f6"
@@ -94,9 +131,11 @@ Filu-X supports three storage modes, allowing users to choose between simplicity
 }
 ```
 
+---
+
 ## ID System
 
-### Hybrid ID Format
+Every post has a unique, hierarchical ID:
 
 ```
 manifestID.postNUM.postHASH
@@ -109,214 +148,161 @@ manifestID.postNUM.postHASH
 |-----------|--------|-------------|
 | **manifestID** | `XXX.XXX.XXX` | Manifest version (major.minor.patch) |
 | **postNUM** | `XXXXXX` | Sequential number (000001-999999), resets with new manifest |
-| **postHASH** | `xxxxxxxx` | First 8 chars of SHA-256 hash (integrity check) |
+| **postHASH** | `xxxxxxxx` | First 8 chars of SHA-256 hash (integrity verification) |
 
-### Integrity Verification
+Post numbers reset with each new manifest version (`000.000.002` starts at `000001`), ensuring archive paths remain stable and predictable.
 
-```python
-def verify_post_integrity(post_obj):
-    # Remove ID and signature from calculation
-    canonical = {k: v for k, v in sorted(post_obj.items()) 
-                 if k not in ('id', 'signature')}
-    data = json.dumps(canonical, sort_keys=True, separators=(',',':'))
-    full_hash = hashlib.sha256(data.encode()).hexdigest()
-    expected_hash = post_obj['id'].split('.')[-1]
-    return full_hash.startswith(expected_hash)
+---
+
+## Linking with fx://
+
+`fx://` is the Filu-X protocol identifier — like `http://` but specific to Filu-X manifests.
+
+| Format | Example | Resolves To |
+|--------|---------|-------------|
+| **Hash** | `fx://QmFiluXManifestHash` | IPFS CID |
+| **URL** | `fx://https://example.com/matti_filu-x.json` | HTTPS endpoint |
+| **Post** | `fx://QmHash/000.000.001.000042` | Specific post (archived) |
+| **Alias** | `fx://@matti` | DNS/NIP-05 resolution |
+
+Share `fx://` links on any platform. If the platform censors the link text, the hash remains shareable.
+
+---
+
+## Architecture
+
+Filu-X uses a **split architecture** for efficiency:
+
+```
+┌─────────────────────────────────────────┐
+│         filu-x-core (shared)            │
+│    IPFS, HTTP, Nostr, Crypto, Cache     │
+└─────────────────────────────────────────┘
+            ▲                    ▲
+   ┌────────┴────────┐    ┌───────┴────────┐
+   │  filu-x-client  │    │ filu-x-notifier │
+   │    (CLI/GUI)    │◄──►│  (background)   │
+   │  Interactive    │ IPC │  Polls updates  │
+   └─────────────────┘    └─────────────────┘
 ```
 
-## Filename Convention
+- **Client**: User interface, posting, following management
+- **Notifier**: Background daemon, polls for updates, receives real-time events
+- **Core**: Shared library used by both
 
-### Priority Order
-```
-username --> nickname --> pubkey(16)
-```
+The notifier enables real-time updates without keeping the client open constantly.
 
-| Priority | Identifier | Format | Example |
-|----------|------------|--------|---------|
-| 1 | username | `username_filu-x.json` | `matti_filu-x.json` |
-| 2 | nickname | `nickname_filu-x.json` | `matti42_filu-x.json` |
-| 3 | pubkey(16) | `pubkey(16)_filu-x.json` | `61050fdd09764041_filu-x.json` |
+---
 
-### Collision Handling
+## Key Principles
 
-When following a user and the username is already taken:
+| Principle | Description |
+|-----------|-------------|
+| **Simplicity** | Single file, clear structure, Unix philosophy |
+| **Censorship Resistance** | Multi-protocol support with automatic fallbacks |
+| **User Control** | Own data, own keys, own priority rules |
+| **Decentralization** | No central server required |
+| **Security** | Cryptographic signatures, hierarchical key management |
+| **Privacy** | End-to-end encryption for private posts |
+| **Persistence** | Active + archive design ensures content longevity |
 
-1. Client asks for a distinguishing nickname
-2. If nickname is also taken → automatic numbering
-3. If no nickname provided → use pubkey(16)
+---
+
+## Privacy & Encryption
+
+| Mode | Public | Private |
+|------|--------|---------|
+| **Single** | ✅ | ❌ |
+| **Linked** | ✅ | ✅ |
+| **Hybrid** | ✅ (active) | ✅ (archive) |
+
+Private posts use **age** encryption with per-recipient keys. Only specified recipients can decrypt.
+
+---
+
+## Use Cases
+
+- **Cross-platform persistence** → Post on X, Mastodon, Instagram — your content survives even if platforms delete it
+- **Resilient profile** → IPFS primary, HTTPS fallback, Nostr real-time
+- **Private conversations** → End-to-end encrypted posts for selected recipients
+- **Persistent discussions** → Conversations survive platform shutdowns
+- **Compromise recovery** → Revoke lost device keys without exposing master key
+
+---
 
 ## Directory Structure
 
 ```
 filu-x-data/
-├── my/                              # Your profile
-│   ├── profile.json                 # Your manifest
-│   ├── keys/                        # Your keys
-│   │   ├── master.asc
-│   │   └── active.asc
-│   └── drafts/                      # Draft posts
-│
-├── following/                       # Followed users (slot-based)
-│   ├── followed_index.json          # Central index
-│   ├── user001/                     # Slot 1
-│   │   ├── .identity                # Backup mapping
-│   │   ├── manifest.json
-│   │   ├── history/                 # Old versions
-│   │   └── cache/                   # Post cache
-│   ├── user002/                     # Slot 2
-│   │   └── ...
-│   └── user003/                     # Slot 3 (inactive)
-│
-├── cache/                           # Shared cache
-│   ├── media/                       # Media files (hash-based)
-│   └── archives/                    # Downloaded archives
-│
-├── requests/                        # Change requests (notifier → client)
-│   ├── incoming/
-│   └── processed/
-│
-└── config/                          # Local settings
-    ├── client.json
-    └── notifier.json
+├── my/
+│   ├── profile.json              # Your manifest
+│   ├── keys/                     # Hierarchical keys
+│   └── drafts/                   # Unpublished posts
+├── following/                    # Followed users (slot-based)
+│   ├── followed_index.json       # Central index (v000.001.001)
+│   ├── user001/                  # Slot 1: Alice
+│   ├── user002/                  # Slot 2: Bob
+│   └── user003/                  # Slot 3: (available)
+├── cache/                        # Shared media & posts
+└── config/                       # Client & notifier settings
 ```
 
-### followed_index.json
+---
 
-```json
-{
-  "version": "000.001.001",
-  "last_updated": "2025-04-07T12:00:00Z",
-  "next_slot": 4,
-  "free_slots": [],
-  "users": {
-    "user001": {
-      "pubkey": "61050fdd...",
-      "username": "alice",
-      "nickname": "Alice Coder",
-      "active": true,
-      "added": "2025-04-01T10:00:00Z",
-      "last_fetched": "2025-04-07T11:00:00Z",
-      "last_version": "000.001.005",
-      "protocols": {
-        "primary": "https://alice.example.com/filu-x.json"
-      }
-    }
-  }
-}
-```
+## Technical Documentation
 
-## Protocols
+- [Full Specification](docs/SPECIFICATION.md) — Complete protocol details
+- [JSON Schema](spec/000.000.001/schema-combined.json) — Validation schemas
+- [Architecture](docs/ARCHITECTURE.md) — Client, notifier, and core design
+- [Examples](examples/) — Working example files
 
-### Protocol Structure
+---
 
-```json
-{
-  "protocols": {
-    "priority": ["ipfs", "https", "nostr"],
-    "ipfs": {
-      "url": "ipfs://QmProfile123",
-      "mirrors": ["ipfs://QmMirror1"],
-      "sync": ["public", "media", "archive"]
-    },
-    "https": {
-      "url": "https://example.com/matti_filu-x.json",
-      "sync": ["public", "text-only"]
-    }
-  }
-}
-```
+## Roadmap
 
-### fx:// Links
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Protocol Spec | ✅ Complete | Version 000.000.001 stable |
+| Reference Client | 🚧 Alpha | Python CLI implementation |
+| Notifier Daemon | 🚧 Alpha | Background update service |
+| Web Client | 📋 Planned | Browser-based interface |
+| Mobile Client | 📋 Planned | iOS/Android apps |
 
-`fx://` is a direct link to a Filu-X manifest - similar to `http://` but Filu-X specific.
+---
 
-| Format | Example | Use |
-|--------|---------|-----|
-| Hash-based | `fx://QmFiluXManifestHash` | Direct CID reference |
-| URL-based | `fx://https://example.com/matti_filu-x.json` | Direct HTTPS |
-| Post reference | `fx://QmHash/000.000.001.000042` | Specific post (archived) |
-| Short (alias) | `fx://@matti` | Requires DNS/NIP-05 resolution |
+## Contributing
 
-## Privacy & Encryption
+Filu-X is open source. Contributions welcome:
 
-| Mode | Public Posts | Private Posts |
-|------|--------------|---------------|
-| **Single** | ✅ | ❌ |
-| **Linked** | ✅ | ✅ |
-| **Hybrid** | ✅ (active) | ✅ (in archive) |
+1. Read the [Specification](docs/SPECIFICATION.md)
+2. Check [Issues](https://github.com/filu-x/filu-x/issues) for tasks
+3. Submit PRs against `main` branch
 
-### Private Post Example
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-```json
-{
-  "id": "000.000.001.000043.b2c3d4e5",
-  "urls": { "ipfs": "ipfs://QmPrivatePost" },
-  "recipients": ["7b3d8f2a...", "9a4c2e8d..."],
-  "encryption": {
-    "algorithm": "age",
-    "data": "base64-encrypted-content",
-    "key_info": {
-      "7b3d8f2a...": "encrypted-key-for-recipient1"
-    }
-  }
-}
-```
+---
 
-## Architecture Components
+## License
 
-### Client (`filu-x-client`)
-- CLI for user interaction
-- Post creation and manifest updates
-- Following management
-- Feed display
-- Primary lock holder (writes)
+Apache License 2.0 — see [LICENSE](LICENSE) file.
 
-### Notifier (`filu-x-notifier`)
-- Background daemon
-- Polls followed users for updates
-- Listens for Nostr events (future)
-- Creates change requests when client has lock
-- Secondary lock holder (reads only)
+Copyright 2026 Filu-X Contributors
 
-### Change Request System
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-When notifier detects an update but client holds the lock:
+    http://www.apache.org/licenses/LICENSE-2.0
 
-1. Notifier creates a change request file in `requests/incoming/`
-2. Client processes pending requests on next startup/command
-3. Request is moved to `requests/processed/` after handling
-
-## Key Principles
-
-1. **Simplicity** - Single file, clear structure, Unix philosophy
-2. **Censorship Resistance** - Multi-protocol support and automatic fallbacks
-3. **User Control** - Own data, own keys, own priority rules
-4. **Decentralization** - No central server required, works atop existing platforms
-5. **Security** - Cryptographic signatures and hierarchical key management
-6. **Privacy** - End-to-end encryption for private posts
-7. **Persistence** - Active + archive design ensures content longevity
-
-## Use Cases
-
-- **Share anywhere, persist everywhere** → Post on X, Facebook, Instagram, or any platform — your content lives on through Filu-X even if the original platform deletes it
-- **Resilient profile** → Your profile works via IPFS, with HTTPS as fallback
-- **Private conversations** → End-to-end encrypted posts for selected recipients
-- **Persistent discussions** → Conversations survive even if the original platform disappears
-- **Key compromise** → Revoke a lost device key without exposing your master key
-
-## Example
-
-See [`examples/single-file/filu-x.json`](examples/single-file/filu-x.json) for a complete working example.
-
-## Next Steps
-
-- [x] Protocol specification document
-- [ ] Reference client implementation (alpha)
-- [ ] Notifier daemon (alpha)
-- [ ] Example application and demo
-- [ ] Community feedback and iteration
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 ---
 
 **Filu-X: Post once, be found everywhere.**
-```
+
+
+
